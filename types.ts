@@ -69,3 +69,11 @@ export type AppScreen =
   | { view: 'signup' }
   | { view: 'onboarding' }
   | { view: 'update-password' };
+
+export type SortOption = 'created_desc' | 'name_asc' | 'rating_desc' | 'latest_visit';
+
+export interface FilterCriteria {
+  status: SpotStatus | null;
+  tags: string[];
+  sortBy: SortOption;
+}

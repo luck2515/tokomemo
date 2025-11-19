@@ -4,9 +4,10 @@ interface StorageMeterProps {
   title: string;
   used: number;
   limit: number;
+  unit?: string;
 }
 
-const StorageMeter: React.FC<StorageMeterProps> = ({ title, used, limit }) => {
+const StorageMeter: React.FC<StorageMeterProps> = ({ title, used, limit, unit = '枚' }) => {
   const percentage = Math.min((used / limit) * 100, 100);
   const isWarning = percentage > 80;
   const isDanger = percentage >= 100;
@@ -20,7 +21,7 @@ const StorageMeter: React.FC<StorageMeterProps> = ({ title, used, limit }) => {
       <div className="flex justify-between items-baseline mb-1">
         <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">{title}</h3>
         <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">
-          {used} <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">/ {limit} 枚</span>
+          {used} <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">/ {limit === Infinity ? '無制限' : limit} {unit}</span>
         </p>
       </div>
       <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 overflow-hidden">

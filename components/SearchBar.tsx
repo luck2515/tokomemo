@@ -1,35 +1,53 @@
+
 import React, { useState, useMemo } from 'react';
 import { Icon } from '../constants';
+import { FilterCriteria, SpotStatus, SortOption } from '../types';
 
-type Status = 'want_to_go' | 'visited' | 'revisit';
-type TagMode = 'or' | 'and';
-type SortBy = 'edited_desc' | 'name_asc' | 'rating_desc' | 'latest_visit';
+interface SearchBarProps {
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  filters: FilterCriteria;
+  onFilterChange: (newFilters: FilterCriteria) => void;
+  availableTags: string[];
+}
 
-const ALL_TAGS = ['coffee', 'cafe', 'shibuya', 'ramen', 'yuzu', 'ebisu', 'bookstore', 'architecture'];
-
-const SearchBar: React.FC = () => {
+const SearchBar: React.FC<SearchBarProps> = ({ 
+  searchQuery, 
+  onSearchQueryChange, 
+  filters, 
+  onFilterChange, 
+  availableTags 
+}) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  // Filter states
-  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
-  const [tagMode, setTagMode] = useState<TagMode>('or');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['coffee']);
-  const [sortBy, setSortBy] = useState<SortBy>('edited_desc');
 
   const toggleFilterPanel = () => setIsFilterOpen(!isFilterOpen);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (selectedStatus) count++;
-    if (selectedTags.length > 0) count++;
-    if (sortBy !== 'edited_desc') count++;
+    if (filters.status) count++;
+    if (filters.tags.length > 0) count++;
+    if (filters.sortBy !== 'created_desc') count++;
     return count;
-  }, [selectedStatus, selectedTags, sortBy]);
+  }, [filters]);
 
   const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    );
+    const newTags = filters.tags.includes(tag) 
+      ? filters.tags.filter(t => t !== tag) 
+      : [...filters.tags, tag];
+    onFilterChange({ ...filters, tags: newTags });
+  };
+
+  const handleStatusChange = (status: SpotStatus) => {
+    onFilterChange({ ...filters, status: filters.status === status ? null : status });
+  }
+
+  const handleReset = () => {
+    onSearchQueryChange('');
+    onFilterChange({
+        status: null,
+        tags: [],
+        sortBy: 'created_desc'
+    });
   };
 
   return (
@@ -42,8 +60,10 @@ const SearchBar: React.FC = () => {
             </div>
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
               placeholder="スポットを検索..."
-              className="w-full h-11 pl-11 pr-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition"
+              className="w-full h-11 pl-11 pr-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition"
             />
           </div>
           <button 
@@ -62,12 +82,24 @@ const SearchBar: React.FC = () => {
       
       {isFilterOpen && (
         <div className="absolute top-full left-0 right-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 p-4 shadow-lg animate-slide-down">
+          
+          <div className="flex justify-between items-center mb-4 pb-2 border-b border-neutral-100 dark:border-neutral-700/50">
+              <span className="text-sm font-bold text-neutral-500 dark:text-neutral-400">絞り込み条件</span>
+              <button 
+                onClick={handleReset}
+                className="text-xs font-bold text-[#FF5252] hover:underline flex items-center gap-1"
+              >
+                  <Icon name="arrow-uturn-left" className="w-3 h-3" />
+                  リセット
+              </button>
+          </div>
+
           <div className="space-y-5">
             <div>
               <label className="text-xs font-bold uppercase text-neutral-500 tracking-wider">ステータス</label>
               <div className="flex gap-2 mt-2">
-                {(['want_to_go', 'visited', 'revisit'] as Status[]).map(status => (
-                  <button key={status} onClick={() => setSelectedStatus(s => s === status ? null : status)} className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-all duration-200 ${selectedStatus === status ? 'bg-[#FF5252] text-white shadow-md shadow-[#FF5252]/20' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600'}`}>
+                {(['want_to_go', 'visited', 'revisit'] as SpotStatus[]).map(status => (
+                  <button key={status} onClick={() => handleStatusChange(status)} className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-all duration-200 ${filters.status === status ? 'bg-[#FF5252] text-white shadow-md shadow-[#FF5252]/20' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600'}`}>
                     {{'want_to_go': '行きたい', 'visited': '行った', 'revisit': '再訪したい'}[status]}
                   </button>
                 ))}
@@ -77,27 +109,25 @@ const SearchBar: React.FC = () => {
             <div>
               <div className="flex justify-between items-center">
                 <label className="text-xs font-bold uppercase text-neutral-500 tracking-wider">タグ</label>
-                <div className="flex items-center gap-1 p-0.5 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
-                  <button onClick={() => setTagMode('or')} className={`px-2 py-0.5 text-xs font-bold rounded-md transition-colors ${tagMode === 'or' ? 'bg-white dark:bg-neutral-600 text-[#FF5252] shadow-sm' : 'text-neutral-500'}`}>OR</button>
-                  <button onClick={() => setTagMode('and')} className={`px-2 py-0.5 text-xs font-bold rounded-md transition-colors ${tagMode === 'and' ? 'bg-white dark:bg-neutral-600 text-[#FF5252] shadow-sm' : 'text-neutral-500'}`}>AND</button>
-                </div>
               </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {ALL_TAGS.map(tag => (
-                  <button key={tag} onClick={() => toggleTag(tag)} className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors border ${selectedTags.includes(tag) ? 'bg-[#FF5252]/10 text-[#FF5252] border-[#FF5252]/50' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-200 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-600'}`}>
+              <div className="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto">
+                {availableTags.length > 0 ? availableTags.map(tag => (
+                  <button key={tag} onClick={() => toggleTag(tag)} className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors border ${filters.tags.includes(tag) ? 'bg-[#FF5252]/10 text-[#FF5252] border-[#FF5252]/50' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-200 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-600'}`}>
                     {tag}
                   </button>
-                ))}
+                )) : (
+                   <p className="text-sm text-neutral-400">登録されたタグはありません</p>
+                )}
               </div>
             </div>
 
             <div>
               <label className="text-xs font-bold uppercase text-neutral-500 tracking-wider">並び替え</label>
-              <select onChange={(e) => setSortBy(e.target.value as SortBy)} value={sortBy} className="w-full mt-2 h-11 px-3 rounded-lg border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] transition">
-                <option value="edited_desc">最新編集順</option>
-                <option value="name_asc">名前昇順</option>
+              <select onChange={(e) => onFilterChange({ ...filters, sortBy: e.target.value as SortOption })} value={filters.sortBy} className="w-full mt-2 h-11 px-3 rounded-lg border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-[#FF6B6B] transition">
+                <option value="created_desc">登録日が新しい順</option>
+                <option value="name_asc">名前順 (A-Z)</option>
                 <option value="rating_desc">評価が高い順</option>
-                <option value="latest_visit">最新訪問日</option>
+                <option value="latest_visit">最近訪問した順</option>
               </select>
             </div>
           </div>

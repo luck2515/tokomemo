@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Spot, AppScreen } from '../types';
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Spot, AppScreen, FilterCriteria } from '../types';
 import SpotCard from '../components/SpotCard';
 import SearchBar from '../components/SearchBar';
 import SpotCardSkeleton from '../components/skeletons/SpotCardSkeleton';
@@ -20,14 +21,76 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
   const ITEMS_PER_PAGE = 6;
   const loaderRef = useRef<HTMLDivElement>(null);
 
-  // Reset when view or initial data changes
+  // Filter & Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<FilterCriteria>({
+    status: null,
+    tags: [],
+    sortBy: 'created_desc',
+  });
+
+  // Compute available tags dynamically from spots
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    initialSpots.forEach(spot => spot.tags.forEach(tag => tags.add(tag)));
+    return Array.from(tags).sort();
+  }, [initialSpots]);
+
+  // Filtering Logic
+  const filteredSpots = useMemo(() => {
+    return initialSpots.filter(spot => {
+      // 1. Search Query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchName = spot.name.toLowerCase().includes(query);
+        const matchMemo = spot.memo?.toLowerCase().includes(query);
+        const matchAddress = spot.address?.toLowerCase().includes(query);
+        if (!matchName && !matchMemo && !matchAddress) return false;
+      }
+
+      // 2. Status Filter
+      if (filters.status && spot.status !== filters.status) return false;
+
+      // 3. Tag Filter (OR Logic by default)
+      if (filters.tags.length > 0) {
+         const hasAnyTag = filters.tags.some(tag => spot.tags.includes(tag));
+         if (!hasAnyTag) return false;
+      }
+
+      return true;
+    }).sort((a, b) => {
+      // 4. Sort
+      switch (filters.sortBy) {
+        case 'name_asc':
+          return a.name.localeCompare(b.name);
+        case 'rating_desc':
+          return (b.rating || 0) - (a.rating || 0);
+        case 'latest_visit':
+          const dateA = a.lastVisitDate ? new Date(a.lastVisitDate).getTime() : 0;
+          const dateB = b.lastVisitDate ? new Date(b.lastVisitDate).getTime() : 0;
+          return dateB - dateA;
+        case 'created_desc':
+        default:
+          const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return createdB - createdA;
+      }
+    });
+  }, [initialSpots, searchQuery, filters]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1);
+    setDisplayedSpots(filteredSpots.slice(0, ITEMS_PER_PAGE));
+  }, [filteredSpots]);
+
+  // Initial Load Simulation
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
         setLoading(false);
-        setDisplayedSpots(initialSpots.slice(0, ITEMS_PER_PAGE));
-        setPage(1);
-    }, 1000);
+        setDisplayedSpots(filteredSpots.slice(0, ITEMS_PER_PAGE));
+    }, 500);
     return () => clearTimeout(timer);
   }, [initialSpots, view]);
 
@@ -35,7 +98,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
         const target = entries[0];
-        if (target.isIntersecting && !loading && displayedSpots.length < initialSpots.length) {
+        if (target.isIntersecting && !loading && displayedSpots.length < filteredSpots.length) {
             loadMore();
         }
     }, {
@@ -53,16 +116,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
             observer.unobserve(loaderRef.current);
         }
     };
-  }, [loading, displayedSpots, initialSpots]);
+  }, [loading, displayedSpots, filteredSpots]);
 
   const loadMore = () => {
       const nextPage = page + 1;
-      const nextSpots = initialSpots.slice(0, nextPage * ITEMS_PER_PAGE);
+      const nextSpots = filteredSpots.slice(0, nextPage * ITEMS_PER_PAGE);
       setDisplayedSpots(nextSpots);
       setPage(nextPage);
   };
 
   const renderEmptyState = () => {
+    if (searchQuery || filters.status || filters.tags.length > 0) {
+         return <EmptyState
+          iconName="search"
+          title="見つかりませんでした"
+          message="検索条件を変更して、もう一度お試しください"
+          action={{ label: '条件をクリア', onClick: () => { setSearchQuery(''); setFilters({ status: null, tags: [], sortBy: 'created_desc' }); } }}
+        />;
+    }
+
     switch (view) {
       case 'shared':
         return <EmptyState
@@ -90,13 +162,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
 
   const spotsWithAd = [...displayedSpots];
   if (userPlan === 'free' && spotsWithAd.length > 2) {
-    // Insert an ad after the 2nd spot
     spotsWithAd.splice(2, 0, { id: 'ad-1' } as any);
   }
 
   return (
     <div className="pb-20">
-      <SearchBar />
+      <SearchBar 
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        filters={filters}
+        onFilterChange={setFilters}
+        availableTags={availableTags}
+      />
       {loading && displayedSpots.length === 0 ? (
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, index) => <SpotCardSkeleton key={index} />)}
@@ -115,7 +192,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
           </div>
           {/* Infinite Scroll Trigger / Loader */}
           <div ref={loaderRef} className="h-20 flex items-center justify-center w-full">
-             {displayedSpots.length < initialSpots.length && (
+             {displayedSpots.length < filteredSpots.length && (
                  <div className="w-6 h-6 border-2 border-neutral-200 border-t-[#FF5252] rounded-full animate-spin"></div>
              )}
           </div>

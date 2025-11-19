@@ -19,7 +19,7 @@ import Header from './components/Header';
 import { AppScreen, Spot, Visit, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
-import { Icon } from './constants';
+import { Icon, PLAN_LIMITS } from './constants';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -36,7 +36,6 @@ const App: React.FC = () => {
   
   // Settings
   const [theme, setTheme] = useState<Theme>('system');
-  const [tagSearchMode, setTagSearchMode] = useState<'or' | 'and'>('or');
 
   // Auth & Onboarding
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
@@ -134,7 +133,15 @@ const App: React.FC = () => {
 
         if (profileData) {
             setProfile(profileData as UserProfile);
-            if (profileData.partner_id) setUserPlan('couple');
+            
+            // Determine Plan
+            if (profileData.partner_id) {
+                setUserPlan('couple');
+            } else {
+                // Check local storage for supporter status (Mock for MVP)
+                const isSupporter = localStorage.getItem(`is_supporter_${userId}`) === 'true';
+                setUserPlan(isSupporter ? 'supporter' : 'free');
+            }
             
             // 2. Fetch Spots (Depend on profile for partner logic)
             await fetchSpots(userId, profileData.partner_id);
@@ -143,7 +150,6 @@ const App: React.FC = () => {
                 setScreen({ view: 'home' });
             }
         } else {
-             // Should not happen with self-healing, but fallback
              setHasCompletedOnboarding(true);
              if (screen.view !== 'update-password') {
                  setScreen({ view: 'home' });
@@ -220,7 +226,8 @@ const App: React.FC = () => {
         memo: v.memo,
         bill: v.bill,
         photos: v.photos || [],
-        spot_id: s.id
+        spot_id: s.id,
+        user_id: v.user_id
       })),
       // Derived fields
       rating: s.visits && s.visits.length > 0 
@@ -237,6 +244,58 @@ const App: React.FC = () => {
     setSpots(mappedSpots);
   };
 
+  // --- Usage Logic ---
+  const usageStats = useMemo(() => {
+    if (!session) return { photos: 0, ai: 0 };
+    
+    // Count photos owned by current user
+    let photoCount = 0;
+    spots.forEach(spot => {
+        spot.photos.forEach(p => {
+            if (spot.user_id === session.user.id) photoCount++; 
+        });
+        spot.visits.forEach(v => {
+             if (v.user_id === session.user.id) {
+                 photoCount += v.photos.length;
+             }
+        });
+    });
+
+    // AI Usage from LocalStorage (Monthly)
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const aiKey = `ai_usage_${session.user.id}_${currentMonth}`;
+    const aiCount = parseInt(localStorage.getItem(aiKey) || '0');
+
+    return { photos: photoCount, ai: aiCount };
+  }, [spots, session]);
+
+  const checkStorageLimit = (additional: number = 1) => {
+      const limit = PLAN_LIMITS[userPlan].photos;
+      if (limit === Infinity) return true;
+      if (usageStats.photos + additional > limit) {
+          alert(`写真の保存容量がいっぱいです。\n現在のプランの上限は${limit}枚です。`);
+          return false;
+      }
+      return true;
+  };
+
+  const checkAiLimit = () => {
+      const limit = PLAN_LIMITS[userPlan].ai_month;
+      if (usageStats.ai >= limit) {
+          alert(`今月のAI利用回数制限に達しました。\n上限は${limit}回です。`);
+          return false;
+      }
+      return true;
+  };
+
+  const incrementAiUsage = () => {
+      if (!session) return;
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const aiKey = `ai_usage_${session.user.id}_${currentMonth}`;
+      const newCount = usageStats.ai + 1;
+      localStorage.setItem(aiKey, newCount.toString());
+  };
+
   // --- Actions ---
 
   const handleNavigate = (newScreen: AppScreen) => {
@@ -244,13 +303,9 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSpot = async (updatedSpot: Partial<Spot> & { id: string }) => {
-    // Optimistic update
     setSpots(prev => prev.map(spot => spot.id === updatedSpot.id ? { ...spot, ...updatedSpot } : spot));
-
-    // DB Update
     const { id, ...fields } = updatedSpot;
     const dbFields: any = {};
-    
     if (fields.name !== undefined) dbFields.name = fields.name;
     if (fields.status !== undefined) dbFields.status = fields.status;
     if (fields.scope !== undefined) dbFields.scope = fields.scope;
@@ -263,7 +318,6 @@ const App: React.FC = () => {
     if (fields.priceMin !== undefined) dbFields.price_min = fields.priceMin;
     if (fields.priceMax !== undefined) dbFields.price_max = fields.priceMax;
     if (fields.paymentMethods !== undefined) dbFields.payment_methods = fields.paymentMethods;
-    
     if (Object.keys(dbFields).length > 0) {
       await supabase.from('spots').update(dbFields).eq('id', id);
     }
@@ -271,7 +325,6 @@ const App: React.FC = () => {
 
   const handleSaveSpot = async (spotData: Partial<Spot> & { id?: string }) => {
     if (!session) return;
-
     const spotPayload = {
       user_id: session.user.id,
       name: spotData.name,
@@ -289,88 +342,45 @@ const App: React.FC = () => {
       opening_hours: spotData.openingHours,
       payment_methods: spotData.paymentMethods,
     };
-
     let savedSpotId = spotData.id;
-
     if (spotData.id) {
-      // Update
-      const { error } = await supabase
-        .from('spots')
-        .update(spotPayload)
-        .eq('id', spotData.id);
+      const { error } = await supabase.from('spots').update(spotPayload).eq('id', spotData.id);
       if (error) console.error('Update failed', error);
     } else {
-      // Insert
-      const { data, error } = await supabase
-        .from('spots')
-        .insert([spotPayload])
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Insert failed', error);
-        return;
-      }
+      const { data, error } = await supabase.from('spots').insert([spotPayload]).select().single();
+      if (error) { console.error('Insert failed', error); return; }
       savedSpotId = data.id;
     }
-
-    // Handle Photos (Insert new ones AND Delete removed ones)
     if (savedSpotId && spotData.photos) {
-        // 1. Delete removed photos
-        const { data: existingPhotos } = await supabase
-            .from('photos')
-            .select('id')
-            .eq('spot_id', savedSpotId);
-            
+        const { data: existingPhotos } = await supabase.from('photos').select('id').eq('spot_id', savedSpotId);
         if (existingPhotos) {
             const currentPhotoIds = spotData.photos.map(p => p.id);
             const photosToDelete = existingPhotos.filter(p => !currentPhotoIds.includes(p.id));
-            
-            if (photosToDelete.length > 0) {
-                await supabase.from('photos').delete().in('id', photosToDelete.map(p => p.id));
-            }
+            if (photosToDelete.length > 0) await supabase.from('photos').delete().in('id', photosToDelete.map(p => p.id));
         }
-
-        // 2. Insert new photos
         const newPhotos = spotData.photos.filter(p => p.id.startsWith('new-'));
-        const photoInserts = newPhotos.map(p => ({
-            spot_id: savedSpotId,
-            url: p.url,
-            user_id: session.user.id
-        }));
-        
-        if (photoInserts.length > 0) {
-            await supabase.from('photos').insert(photoInserts);
-        }
+        const photoInserts = newPhotos.map(p => ({ spot_id: savedSpotId, url: p.url, user_id: session.user.id }));
+        if (photoInserts.length > 0) await supabase.from('photos').insert(photoInserts);
     }
-
     if (session) fetchSpots(session.user.id, profile?.partner_id);
   };
 
   const handleTogglePin = async (spotId: string) => {
     const spot = spots.find(s => s.id === spotId);
-    if (spot) {
-      handleUpdateSpot({ id: spotId, isPinned: !spot.isPinned });
-    }
+    if (spot) handleUpdateSpot({ id: spotId, isPinned: !spot.isPinned });
   };
 
   const handleDeleteSpot = async (spotId: string) => {
     if (!window.confirm('本当に削除しますか？')) return;
-    
-    // Optimistic UI
     setSpots(prev => prev.filter(s => s.id !== spotId));
-    
-    // Cleanup photos first (if no cascade)
     await supabase.from('photos').delete().eq('spot_id', spotId);
     await supabase.from('visits').delete().eq('spot_id', spotId);
     await supabase.from('spots').delete().eq('id', spotId);
-    
     handleNavigate({ view: 'home' });
   };
 
   const handleSaveVisit = async (spotId: string, visit: Visit) => {
     if (!session) return;
-
     const visitPayload = {
       spot_id: spotId,
       user_id: session.user.id,
@@ -379,56 +389,31 @@ const App: React.FC = () => {
       memo: visit.memo,
       bill: visit.bill,
     };
-
     let visitId = visit.id;
     const isNew = visit.id.startsWith('new-');
-
     if (!isNew) {
       await supabase.from('visits').update(visitPayload).eq('id', visit.id);
     } else {
        const { data } = await supabase.from('visits').insert([visitPayload]).select().single();
        if (data) visitId = data.id;
     }
-
-    // Handle Visit Photos
     if (visitId && visit.photos) {
-         // 1. Delete removed photos
-         const { data: existingPhotos } = await supabase
-            .from('photos')
-            .select('id')
-            .eq('visit_id', visitId);
-
+         const { data: existingPhotos } = await supabase.from('photos').select('id').eq('visit_id', visitId);
          if (existingPhotos) {
             const currentPhotoIds = visit.photos.map(p => p.id);
             const photosToDelete = existingPhotos.filter(p => !currentPhotoIds.includes(p.id));
-            
-            if (photosToDelete.length > 0) {
-                await supabase.from('photos').delete().in('id', photosToDelete.map(p => p.id));
-            }
+            if (photosToDelete.length > 0) await supabase.from('photos').delete().in('id', photosToDelete.map(p => p.id));
          }
-
-        // 2. Insert new photos
        const newPhotos = visit.photos.filter(p => p.id.startsWith('new-'));
-       const photoInserts = newPhotos.map(p => ({
-         visit_id: visitId,
-         spot_id: spotId,
-         url: p.url,
-         user_id: session.user.id
-       }));
-       if (photoInserts.length > 0) {
-         await supabase.from('photos').insert(photoInserts);
-       }
+       const photoInserts = newPhotos.map(p => ({ visit_id: visitId, spot_id: spotId, url: p.url, user_id: session.user.id }));
+       if (photoInserts.length > 0) await supabase.from('photos').insert(photoInserts);
     }
-
-    // Update spot status to 'visited' automatically
     await supabase.from('spots').update({ status: 'visited' }).eq('id', spotId);
-
     if(session) fetchSpots(session.user.id, profile?.partner_id);
     setScreen({ view: 'spot-detail', spotId });
   };
 
   const handleDeleteVisit = async (spotId: string, visitId: string) => {
-    // Cleanup photos first
     await supabase.from('photos').delete().eq('visit_id', visitId);
     await supabase.from('visits').delete().eq('id', visitId);
     if(session) fetchSpots(session.user.id, profile?.partner_id);
@@ -436,14 +421,12 @@ const App: React.FC = () => {
 
   const handleApplyAiCompletion = (spotId: string, completionData: Partial<Spot>) => {
     const originalSpot = spots.find(s => s.id === spotId);
-    if (originalSpot) {
-      setPreviousSpotState(originalSpot);
-    }
-    
+    if (originalSpot) setPreviousSpotState(originalSpot);
     handleUpdateSpot({ id: spotId, ...completionData });
     setShowUndo(true);
     setTimeout(() => setShowUndo(false), 10000);
     handleNavigate({ view: 'spot-form', spotId });
+    incrementAiUsage(); 
   };
 
   const handleUndo = () => {
@@ -467,6 +450,44 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleDeleteAccount = async () => {
+      if (!session) return;
+      if (window.confirm("本当にアカウントを削除しますか？\nこの操作は取り消せません。全てのデータ（スポット、写真、訪問記録）が削除されます。")) {
+          try {
+              // Try to delete profile. This requires RLS policy or cascading delete.
+              const { error } = await supabase.from('profiles').delete().eq('id', session.user.id);
+              
+              if (error) {
+                 console.error("Delete profile error:", error);
+                 // Fallback or specific handling
+                 throw new Error("プロフィールの削除に失敗しました。データベースの削除ポリシーを確認してください。");
+              }
+              
+              await supabase.auth.signOut();
+              alert("退会処理が完了しました。ご利用ありがとうございました。");
+              setScreen({ view: 'welcome' });
+          } catch (e: any) {
+              console.error(e);
+              alert("退会処理に失敗しました: " + e.message);
+              // Re-throw to let the component know to stop spinning
+              throw e;
+          }
+      }
+  };
+
+  const handleChangePlan = (plan: 'free' | 'supporter') => {
+    if (!session) return;
+    if (plan === 'supporter') {
+        localStorage.setItem(`is_supporter_${session.user.id}`, 'true');
+        setUserPlan('supporter');
+        alert('サポータープランに変更しました！ご支援ありがとうございます。');
+    } else {
+        localStorage.removeItem(`is_supporter_${session.user.id}`);
+        setUserPlan('free');
+        alert('フリープランに変更しました。');
+    }
   };
 
   const activeTab = useMemo(() => {
@@ -529,11 +550,9 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-sans selection:bg-[#FF5252]/30">
       {isOffline && <OfflineBanner isOffline={isOffline} />}
 
-      {/* Main Header */}
       {['home', 'favorites', 'shared'].includes(screen.view) && <Header />}
       
-      {/* Main Content Area */}
-      <div className="pb-20 pt-14"> {/* Added padding top for header */}
+      <div className="pb-20 pt-14"> 
         {screen.view === 'home' && (
             <HomeScreen spots={spots} onNavigate={handleNavigate} view="home" userPlan={userPlan} />
         )}
@@ -551,8 +570,9 @@ const App: React.FC = () => {
                 onLogout={handleLogout}
                 theme={theme}
                 onThemeChange={setTheme}
-                tagSearchMode={tagSearchMode}
-                onTagSearchModeChange={setTagSearchMode}
+                onDeleteAccount={handleDeleteAccount}
+                usageStats={usageStats}
+                onChangePlan={handleChangePlan}
             />
         )}
       </div>
@@ -576,6 +596,9 @@ const App: React.FC = () => {
             onClose={() => handleNavigate({ view: 'home' })} 
             onSave={handleSaveSpot}
             onNavigate={handleNavigate}
+            checkStorageLimit={checkStorageLimit}
+            checkAiLimit={checkAiLimit}
+            incrementAiUsage={incrementAiUsage}
         />
       )}
 
@@ -585,6 +608,7 @@ const App: React.FC = () => {
             visit={screen.visitId ? spots.find(s => s.id === screen.spotId)?.visits.find(v => v.id === screen.visitId) : undefined}
             onClose={() => handleNavigate({ view: 'spot-detail', spotId: screen.spotId })}
             onSave={handleSaveVisit}
+            checkStorageLimit={checkStorageLimit}
         />
       )}
 
@@ -607,7 +631,6 @@ const App: React.FC = () => {
 
       <UndoToast isVisible={showUndo} onUndo={handleUndo} message="変更を元に戻せます" />
 
-      {/* Navigation */}
       <BottomNavigation 
         activeTab={activeTab} 
         onNavigate={handleNavigate} 

@@ -11,7 +11,7 @@ interface UpdatePasswordScreenProps {
 const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
     <input 
         {...props} 
-        className={`w-full h-12 px-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200 ${props.className}`} 
+        className={`w-full h-12 px-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200 ${props.className}`} 
     />
 );
 
@@ -44,10 +44,10 @@ const UpdatePasswordScreen: React.FC<UpdatePasswordScreenProps> = ({ onNavigate 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
        <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-          <button onClick={() => onNavigate({ view: 'home' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+          <button onClick={() => onNavigate({ view: 'home' })} className="relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
              <Icon name="x-mark" className="w-6 h-6 text-white" />
           </button>
-          <h1 className="text-lg font-bold text-center flex-1 -ml-10">新しいパスワード</h1>
+          <h1 className="text-lg font-bold text-center flex-1 -ml-10 pointer-events-none">新しいパスワード</h1>
        </header>
 
        <main className="flex-1 flex flex-col justify-center p-8">

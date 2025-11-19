@@ -10,6 +10,9 @@ interface SpotFormProps {
   onClose: () => void;
   onSave: (spot: Partial<Spot> & { id?: string }) => void;
   onNavigate: (screen: AppScreen) => void;
+  checkStorageLimit: (additional?: number) => boolean;
+  checkAiLimit: () => boolean;
+  incrementAiUsage: () => void;
 }
 
 const FormField: React.FC<{ label: string, children: React.ReactNode, description?: string, error?: string }> = ({ label, children, description, error }) => (
@@ -24,7 +27,7 @@ const FormField: React.FC<{ label: string, children: React.ReactNode, descriptio
 const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }> = ({ error, className, ...props }) => (
     <input 
         {...props} 
-        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
+        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
     />
 );
 
@@ -32,11 +35,11 @@ const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = (p
     <textarea
         {...props}
         rows={4}
-        className="w-full p-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200"
+        className="w-full p-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200"
     />
 );
 
-const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React.SetStateAction<Photo[]>> }> = ({ photos, setPhotos }) => {
+const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>, checkLimit: (n: number) => boolean }> = ({ photos, setPhotos, checkLimit }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
@@ -45,6 +48,12 @@ const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         if (!fileList || fileList.length === 0) return;
+        
+        if (!checkLimit(fileList.length)) {
+            // Reset input
+            e.target.value = '';
+            return;
+        }
 
         const files: File[] = Array.from(fileList);
         setUploading(true);
@@ -78,6 +87,7 @@ const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React
             }
         }
         setUploading(false);
+        e.target.value = '';
     };
 
     const handleDelete = (id: string) => {
@@ -145,7 +155,7 @@ const TagInput: React.FC<{ tags: string[], setTags: (tags: string[]) => void }> 
 };
 
 
-const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }) => {
+const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate, checkStorageLimit, checkAiLimit, incrementAiUsage }) => {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [memo, setMemo] = useState('');
@@ -232,6 +242,8 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
       return;
     }
     
+    if (!checkAiLimit()) return;
+
     setIsAiLoading(true);
     setErrors({});
 
@@ -302,8 +314,10 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
       };
       
       if (spot?.id) {
+         // If editing, go to confirm modal (which counts usage on apply)
          onNavigate({ view: 'ai-completion', spotId: spot.id, completionData });
       } else {
+        // If creating new, just fill details and count usage
         setName(prev => completionData.name || prev);
         setAddress(prev => completionData.address || prev);
         setPhone(prev => completionData.phone || prev);
@@ -314,6 +328,7 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
         setPriceMax(prev => completionData.priceMax?.toString() || prev);
         setPaymentMethods(prev => completionData.paymentMethods ? completionData.paymentMethods.join(', ') : prev);
         
+        incrementAiUsage();
         alert('AIによる情報補完が完了しました。内容を確認して保存してください。');
       }
 
@@ -347,7 +362,7 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
             </FormField>
             
             <FormField label="写真">
-                <PhotoUploader photos={photos} setPhotos={setPhotos} />
+                <PhotoUploader photos={photos} setPhotos={setPhotos} checkLimit={checkStorageLimit} />
             </FormField>
 
             <FormField label="URL" description="URLからAIが情報を自動入力できます" error={errors.url}>

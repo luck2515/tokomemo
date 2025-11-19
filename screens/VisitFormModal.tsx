@@ -9,6 +9,7 @@ interface VisitFormModalProps {
   visit?: Visit; // Make visit optional for new entries
   onClose: () => void;
   onSave: (spotId: string, visit: Visit) => void;
+  checkStorageLimit: (additional?: number) => boolean;
 }
 
 const FormField: React.FC<{ label: string, children: React.ReactNode, error?: string }> = ({ label, children, error }) => (
@@ -22,7 +23,7 @@ const FormField: React.FC<{ label: string, children: React.ReactNode, error?: st
 const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }> = ({ error, className, ...props }) => (
     <input 
         {...props} 
-        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
+        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
     />
 );
 
@@ -30,7 +31,7 @@ const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = (p
     <textarea
         {...props}
         rows={4}
-        className="w-full p-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200"
+        className="w-full p-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200"
     />
 );
 
@@ -49,7 +50,7 @@ const RatingInput: React.FC<{ rating: number; setRating: (rating: number) => voi
     </div>
 );
 
-const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React.SetStateAction<Photo[]>> }> = ({ photos, setPhotos }) => {
+const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>, checkLimit: (n: number) => boolean }> = ({ photos, setPhotos, checkLimit }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
@@ -58,6 +59,11 @@ const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         if (!fileList || fileList.length === 0) return;
+        
+        if (!checkLimit(fileList.length)) {
+             e.target.value = '';
+             return;
+        }
 
         const files: File[] = Array.from(fileList);
         setUploading(true);
@@ -91,6 +97,7 @@ const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React
             }
         }
         setUploading(false);
+        e.target.value = '';
     };
     
     const handleDelete = (id: string) => {
@@ -136,7 +143,7 @@ const PhotoUploader: React.FC<{ photos: Photo[], setPhotos: React.Dispatch<React
 };
 
 
-const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, onSave }) => {
+const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, onSave, checkStorageLimit }) => {
   const [visitedAt, setVisitedAt] = useState(new Date().toISOString().split('T')[0]);
   const [rating, setRating] = useState(3);
   const [bill, setBill] = useState('');
@@ -208,7 +215,7 @@ const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, o
             </FormField>
             
             <FormField label="写真">
-                <PhotoUploader photos={photos} setPhotos={setPhotos} />
+                <PhotoUploader photos={photos} setPhotos={setPhotos} checkLimit={checkStorageLimit} />
             </FormField>
 
             <FormField label="費用" error={errors.bill}>

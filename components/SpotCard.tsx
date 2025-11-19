@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Spot, SpotStatus } from '../types';
 import { Icon } from '../constants';
@@ -68,7 +69,7 @@ const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick }) => {
             <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 pt-1 mt-auto border-t border-neutral-100 dark:border-neutral-700/50">
                 <Icon name="calendar" className="w-3.5 h-3.5" />
                 <span className="text-xs font-medium">
-                    最終訪問: {new Date(spot.lastVisitDate).toLocaleString('ja-JP')}
+                    最終訪問: {new Date(spot.lastVisitDate).toLocaleDateString('ja-JP')}
                 </span>
             </div>
         )}
@@ -79,7 +80,7 @@ const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick }) => {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          min-height: 2.75rem; /* line-height * 2 */
+          height: 2.75em; /* line-height (1.375) * 2 */
         }
         .leading-snug-looser {
             line-height: 1.375;

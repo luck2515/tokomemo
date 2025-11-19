@@ -12,7 +12,7 @@ interface SignUpScreenProps {
 const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }> = ({ error, className, ...props }) => (
     <input 
         {...props} 
-        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
+        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
     />
 );
 
@@ -112,10 +112,10 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
       return (
         <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
              <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-                <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+                <button onClick={() => onNavigate({ view: 'welcome' })} className="relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
                     <Icon name="x-mark" className="w-6 h-6 text-white" />
                 </button>
-                 <h1 className="text-lg font-bold text-center flex-1 -ml-10">確認メール送信完了</h1>
+                 <h1 className="text-lg font-bold text-center flex-1 -ml-10 pointer-events-none">確認メール送信完了</h1>
             </header>
 
             <main className="flex-1 flex flex-col justify-center p-8 text-center">
@@ -156,10 +156,10 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
       <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-        <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+        <button onClick={() => onNavigate({ view: 'welcome' })} className="relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
           <Icon name="arrow-left" className="w-6 h-6 text-white" />
         </button>
-        <h1 className="text-lg font-bold text-center flex-1 -ml-10">新規登録</h1>
+        <h1 className="text-lg font-bold text-center flex-1 -ml-10 pointer-events-none">新規登録</h1>
       </header>
       
       <main className="flex-1 flex flex-col justify-center p-8">
