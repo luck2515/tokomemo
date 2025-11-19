@@ -241,7 +241,6 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
       }
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // Using Google Search tool to prevent hallucinations
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: `
@@ -269,12 +268,10 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
         `,
         config: {
           tools: [{ googleSearch: {} }],
-          // responseMimeType: "application/json" is NOT allowed with tools
         },
       });
 
       const text = response.text;
-      // Extract JSON from markdown code block
       const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
       
       if (!jsonMatch) {
@@ -284,7 +281,6 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
       const jsonStr = jsonMatch[1] || jsonMatch[0];
       const rawData = JSON.parse(jsonStr);
 
-      // Process data specifically for Memo merging
       let mergedMemo = rawData.memo || "";
       if (rawData.recommendations) {
           mergedMemo += `\n\n【おすすめ】\n${rawData.recommendations}`;
@@ -331,83 +327,88 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
 
 
   return (
-    <div className="fixed inset-0 z-50 bg-neutral-50 dark:bg-neutral-900 animate-slide-up-fast flex flex-col">
-      <header className="flex-shrink-0 flex items-center p-2 border-b border-neutral-200 dark:border-neutral-700/80" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-        <button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
-          <Icon name="x-mark" className="w-6 h-6" />
-        </button>
-        <h1 className="text-lg font-bold text-center flex-1">{isEditing ? 'スポットを編集' : 'スポットを追加'}</h1>
-        <button form="spot-form" type="submit" className="px-5 py-2 rounded-full bg-gradient-to-br from-[#FF5252] to-[#E63946] text-white font-semibold text-sm shadow-md shadow-[#FF5252]/30 transition-transform active:scale-95">
-          保存
-        </button>
-      </header>
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}></div>
+      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[95vh] bg-neutral-50 dark:bg-neutral-900 rounded-t-2xl flex flex-col animate-slide-up-fast">
+        <header className="flex-shrink-0 flex items-center p-2 border-b border-neutral-200 dark:border-neutral-700/80" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+            <button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
+            <Icon name="x-mark" className="w-6 h-6" />
+            </button>
+            <h1 className="text-lg font-bold text-center flex-1">{isEditing ? 'スポットを編集' : 'スポットを追加'}</h1>
+            <button form="spot-form" type="submit" className="px-5 py-2 rounded-full bg-gradient-to-br from-[#FF5252] to-[#E63946] text-white font-semibold text-sm shadow-md shadow-[#FF5252]/30 transition-transform active:scale-95">
+            保存
+            </button>
+        </header>
 
-      <main className="flex-1 overflow-y-auto">
-        <form id="spot-form" onSubmit={handleSubmit} className="space-y-6 p-4 pb-20">
-          <FormField label="スポット名 *" error={errors.name}>
-            <TextInput error={!!errors.name} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="例：ブルーボトルコーヒー 渋谷カフェ" />
-          </FormField>
-          
-          <FormField label="写真">
-              <PhotoUploader photos={photos} setPhotos={setPhotos} />
-          </FormField>
+        <main className="flex-1 overflow-y-auto">
+            <form id="spot-form" onSubmit={handleSubmit} className="space-y-6 p-4 pb-20">
+            <FormField label="スポット名 *" error={errors.name}>
+                <TextInput error={!!errors.name} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="例：ブルーボトルコーヒー 渋谷カフェ" />
+            </FormField>
+            
+            <FormField label="写真">
+                <PhotoUploader photos={photos} setPhotos={setPhotos} />
+            </FormField>
 
-          <FormField label="URL" description="URLからAIが情報を自動入力できます" error={errors.url}>
-             <div className="flex items-center gap-2">
-                <TextInput error={!!errors.url} type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
-                <button type="button" onClick={handleAiFetch} disabled={isAiLoading} className="h-12 px-4 rounded-xl bg-neutral-200 dark:bg-neutral-700 font-semibold text-sm text-neutral-800 dark:text-neutral-100 flex items-center gap-2 flex-shrink-0 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors disabled:opacity-50 active:scale-95">
-                    <Icon name="sparkles" className={`w-5 h-5 ${isAiLoading ? 'animate-spin' : ''}`} />
-                    <span>{isAiLoading ? '取得中' : 'AI補完'}</span>
-                </button>
+            <FormField label="URL" description="URLからAIが情報を自動入力できます" error={errors.url}>
+                <div className="flex items-center gap-2">
+                    <TextInput error={!!errors.url} type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
+                    <button type="button" onClick={handleAiFetch} disabled={isAiLoading} className="h-12 px-4 rounded-xl bg-neutral-200 dark:bg-neutral-700 font-semibold text-sm text-neutral-800 dark:text-neutral-100 flex items-center gap-2 flex-shrink-0 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors disabled:opacity-50 active:scale-95">
+                        <Icon name="sparkles" className={`w-5 h-5 ${isAiLoading ? 'animate-spin' : ''}`} />
+                        <span>{isAiLoading ? '取得中' : 'AI補完'}</span>
+                    </button>
+                </div>
+            </FormField>
+            
+            <FormField label="タグ">
+                <TagInput tags={tags} setTags={setTags} />
+            </FormField>
+            
+            <FormField label="メモ (概要・おすすめ・アクセス)">
+                <TextArea placeholder="この場所についてのメモ..." value={memo} onChange={e => setMemo(e.target.value)} />
+            </FormField>
+
+            <FormField label="住所">
+                <TextInput type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="東京都渋谷区..." />
+            </FormField>
+            
+            <FormField label="電話番号" error={errors.phone}>
+                <TextInput error={!!errors.phone} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="03-1234-5678" />
+            </FormField>
+
+            <FormField label="営業時間・定休日">
+                <TextArea rows={3} value={openingHours} onChange={e => setOpeningHours(e.target.value)} placeholder="月-金: 10:00-20:00&#13;&#10;土日: 11:00-21:00" />
+            </FormField>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField label="最低予算" error={errors.price}>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">¥</span>
+                        <TextInput type="number" value={priceMin} onChange={e => setPriceMin(e.target.value)} className="pl-7" placeholder="1000" />
+                    </div>
+                </FormField>
+                <FormField label="最高予算">
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">¥</span>
+                        <TextInput type="number" value={priceMax} onChange={e => setPriceMax(e.target.value)} className="pl-7" placeholder="3000" />
+                    </div>
+                </FormField>
             </div>
-          </FormField>
-          
-          <FormField label="タグ">
-            <TagInput tags={tags} setTags={setTags} />
-          </FormField>
-          
-          <FormField label="メモ (概要・おすすめ・アクセス)">
-            <TextArea placeholder="この場所についてのメモ..." value={memo} onChange={e => setMemo(e.target.value)} />
-          </FormField>
 
-          <FormField label="住所">
-            <TextInput type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="東京都渋谷区..." />
-          </FormField>
-          
-          <FormField label="電話番号" error={errors.phone}>
-            <TextInput error={!!errors.phone} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="03-1234-5678" />
-          </FormField>
-
-          <FormField label="営業時間・定休日">
-            <TextArea rows={3} value={openingHours} onChange={e => setOpeningHours(e.target.value)} placeholder="月-金: 10:00-20:00&#13;&#10;土日: 11:00-21:00" />
-          </FormField>
-
-          <div className="grid grid-cols-2 gap-4">
-             <FormField label="最低予算" error={errors.price}>
-                <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">¥</span>
-                    <TextInput type="number" value={priceMin} onChange={e => setPriceMin(e.target.value)} className="pl-7" placeholder="1000" />
-                </div>
+            <FormField label="支払い方法">
+                <TextInput type="text" value={paymentMethods} onChange={e => setPaymentMethods(e.target.value)} placeholder="VISA, PayPay, 現金..." />
             </FormField>
-            <FormField label="最高予算">
-                <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">¥</span>
-                    <TextInput type="number" value={priceMax} onChange={e => setPriceMax(e.target.value)} className="pl-7" placeholder="3000" />
-                </div>
-            </FormField>
-          </div>
-
-           <FormField label="支払い方法">
-            <TextInput type="text" value={paymentMethods} onChange={e => setPaymentMethods(e.target.value)} placeholder="VISA, PayPay, 現金..." />
-          </FormField>
-          
-        </form>
-      </main>
+            
+            </form>
+        </main>
+      </div>
       <style>{`
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-slide-up-fast { animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
-    </div>
+    </>
   );
 };
 

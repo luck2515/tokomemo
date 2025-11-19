@@ -65,10 +65,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
   if (isResetMode) {
       return (
         <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
-            <header className="flex-shrink-0 flex items-center p-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-                <button onClick={() => setIsResetMode(false)} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                <Icon name="arrow-left" className="w-6 h-6" />
+            <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+                <button onClick={() => setIsResetMode(false)} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+                    <Icon name="arrow-left" className="w-6 h-6 text-white" />
                 </button>
+                <h1 className="text-lg font-bold text-center flex-1 -ml-10">パスワードの再設定</h1>
             </header>
             
             <main className="flex-1 flex flex-col justify-center p-8">
@@ -76,7 +77,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
                     <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Icon name="user" className="w-8 h-8 text-blue-500" />
                     </div>
-                    <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100">パスワードの再設定</h1>
                     <p className="text-neutral-500 dark:text-neutral-400 mt-2 text-sm">
                         登録したメールアドレスを入力してください。<br/>
                         リセット用のリンクを送信します。
@@ -113,17 +113,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
-      <header className="flex-shrink-0 flex items-center p-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-        <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
-          <Icon name="arrow-left" className="w-6 h-6" />
+      <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+        <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+          <Icon name="arrow-left" className="w-6 h-6 text-white" />
         </button>
+        <h1 className="text-lg font-bold text-center flex-1 -ml-10">ログイン</h1>
       </header>
       
       <main className="flex-1 flex flex-col justify-center p-8">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-100">ログイン</h1>
-        </div>
-        
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400">メールアドレス</label>

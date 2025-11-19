@@ -111,17 +111,18 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
   if (emailSent) {
       return (
         <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
-             <header className="flex-shrink-0 flex items-center p-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-                <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                <Icon name="x-mark" className="w-6 h-6" />
+             <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+                <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+                    <Icon name="x-mark" className="w-6 h-6 text-white" />
                 </button>
+                 <h1 className="text-lg font-bold text-center flex-1 -ml-10">確認メール送信完了</h1>
             </header>
 
             <main className="flex-1 flex flex-col justify-center p-8 text-center">
                 <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Icon name="bell" className="w-10 h-10 text-green-500" />
                 </div>
-                <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">確認メールを送信しました</h1>
+                <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">確認メールを送信しました</h2>
                 <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed mb-8">
                     <strong>{email}</strong> 宛に確認メールを送信しました。<br/>
                     メール内のリンクをクリックして、登録を完了してください。
@@ -154,17 +155,14 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
-      <header className="flex-shrink-0 flex items-center p-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-        <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
-          <Icon name="arrow-left" className="w-6 h-6" />
+      <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+        <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+          <Icon name="arrow-left" className="w-6 h-6 text-white" />
         </button>
+        <h1 className="text-lg font-bold text-center flex-1 -ml-10">新規登録</h1>
       </header>
       
       <main className="flex-1 flex flex-col justify-center p-8">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-100">新規登録</h1>
-        </div>
-        
         <form onSubmit={handleSignUpSubmit} className="space-y-6">
           <div>
             <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400">メールアドレス</label>

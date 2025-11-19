@@ -15,6 +15,7 @@ import LoginScreen from './screens/LoginScreen';
 import SignUpScreen from './screens/SignUpScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import UpdatePasswordScreen from './screens/UpdatePasswordScreen';
+import Header from './components/Header';
 import { AppScreen, Spot, Visit, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
@@ -527,9 +528,12 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-sans selection:bg-[#FF5252]/30">
       {isOffline && <OfflineBanner isOffline={isOffline} />}
+
+      {/* Main Header */}
+      {['home', 'favorites', 'shared'].includes(screen.view) && <Header />}
       
       {/* Main Content Area */}
-      <div className="pb-20"> {/* Padding for Bottom Nav */}
+      <div className="pb-20 pt-14"> {/* Added padding top for header */}
         {screen.view === 'home' && (
             <HomeScreen spots={spots} onNavigate={handleNavigate} view="home" userPlan={userPlan} />
         )}

@@ -43,6 +43,13 @@ const UpdatePasswordScreen: React.FC<UpdatePasswordScreenProps> = ({ onNavigate 
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
+       <header className="sticky top-0 z-50 flex items-center p-2 bg-gradient-to-r from-[#FF5252] to-[#E63946] shadow-md text-white" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+          <button onClick={() => onNavigate({ view: 'home' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20 active:bg-white/30">
+             <Icon name="x-mark" className="w-6 h-6 text-white" />
+          </button>
+          <h1 className="text-lg font-bold text-center flex-1 -ml-10">新しいパスワード</h1>
+       </header>
+
        <main className="flex-1 flex flex-col justify-center p-8">
         <div className="text-center mb-10">
              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">

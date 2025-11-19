@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Spot, AppScreen } from '../types';
 import SpotCard from '../components/SpotCard';
 import SearchBar from '../components/SearchBar';
@@ -15,21 +15,51 @@ interface HomeScreenProps {
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate, view, userPlan }) => {
   const [loading, setLoading] = useState(true);
-  const [spots, setSpots] = useState(initialSpots.slice(0, 4)); // Show limited spots initially
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const hasMore = spots.length < initialSpots.length;
+  const [displayedSpots, setDisplayedSpots] = useState<Spot[]>([]);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleLoadMore = () => {
-    setIsLoadingMore(true);
-    setTimeout(() => {
-      setSpots(initialSpots);
-      setIsLoadingMore(false);
+  // Reset when view or initial data changes
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+        setLoading(false);
+        setDisplayedSpots(initialSpots.slice(0, ITEMS_PER_PAGE));
+        setPage(1);
     }, 1000);
+    return () => clearTimeout(timer);
+  }, [initialSpots, view]);
+
+  // Infinite Scroll Logic
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && !loading && displayedSpots.length < initialSpots.length) {
+            loadMore();
+        }
+    }, {
+        root: null,
+        rootMargin: '20px',
+        threshold: 1.0
+    });
+
+    if (loaderRef.current) {
+        observer.observe(loaderRef.current);
+    }
+
+    return () => {
+        if (loaderRef.current) {
+            observer.unobserve(loaderRef.current);
+        }
+    };
+  }, [loading, displayedSpots, initialSpots]);
+
+  const loadMore = () => {
+      const nextPage = page + 1;
+      const nextSpots = initialSpots.slice(0, nextPage * ITEMS_PER_PAGE);
+      setDisplayedSpots(nextSpots);
+      setPage(nextPage);
   };
 
   const renderEmptyState = () => {
@@ -58,8 +88,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
     }
   };
 
-  const spotsWithAd = [...spots];
-  if (userPlan === 'free' && spots.length > 2) {
+  const spotsWithAd = [...displayedSpots];
+  if (userPlan === 'free' && spotsWithAd.length > 2) {
     // Insert an ad after the 2nd spot
     spotsWithAd.splice(2, 0, { id: 'ad-1' } as any);
   }
@@ -67,11 +97,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
   return (
     <div className="pb-20">
       <SearchBar />
-      {loading ? (
+      {loading && displayedSpots.length === 0 ? (
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, index) => <SpotCardSkeleton key={index} />)}
         </div>
-      ) : spots.length > 0 ? (
+      ) : displayedSpots.length > 0 ? (
         <>
           <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {spotsWithAd.map(item => {
@@ -83,17 +113,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
               );
             })}
           </div>
-          {hasMore && (
-            <div className="px-4 mt-4 text-center">
-              <button
-                onClick={handleLoadMore}
-                disabled={isLoadingMore}
-                className="px-6 py-3 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-semibold transition-colors active:scale-95 hover:bg-neutral-300 dark:hover:bg-neutral-600 disabled:opacity-50"
-              >
-                {isLoadingMore ? '読み込み中...' : 'さらに読み込む'}
-              </button>
-            </div>
-          )}
+          {/* Infinite Scroll Trigger / Loader */}
+          <div ref={loaderRef} className="h-20 flex items-center justify-center w-full">
+             {displayedSpots.length < initialSpots.length && (
+                 <div className="w-6 h-6 border-2 border-neutral-200 border-t-[#FF5252] rounded-full animate-spin"></div>
+             )}
+          </div>
         </>
       ) : (
         renderEmptyState()
