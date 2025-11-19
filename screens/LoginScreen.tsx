@@ -21,10 +21,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isResetMode, setIsResetMode] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError('');
     
     const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -32,7 +34,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
     });
 
     if (error) {
-        alert('ログインに失敗しました: ' + error.message);
+        if (error.message.includes('Invalid login credentials')) {
+            setLoginError('メールアドレスまたはパスワードが間違っています。');
+        } else {
+            setLoginError('ログインに失敗しました: ' + error.message);
+        }
     } else {
         // Auth state listener in App.tsx will handle navigation
     }
@@ -124,7 +130,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
             <TextInput
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                  setEmail(e.target.value);
+                  setLoginError('');
+              }}
               placeholder="email@example.com"
               required
               className="mt-2"
@@ -135,12 +144,22 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
             <TextInput
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                  setPassword(e.target.value);
+                  setLoginError('');
+              }}
               placeholder="••••••••"
               required
               className="mt-2"
             />
           </div>
+
+          {loginError && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 flex items-center gap-2 animate-shake">
+                <Icon name="x-mark" className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium">{loginError}</p>
+            </div>
+          )}
           
           <div className="pt-2">
             <button
@@ -169,6 +188,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
       <style>{`
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
       `}</style>
     </div>
   );

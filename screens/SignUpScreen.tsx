@@ -35,6 +35,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [cooldown, setCooldown] = useState(0);
 
   const handleSignUpSubmit = async (e: React.FormEvent) => {
@@ -50,116 +51,105 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
     if (cooldown > 0) return;
 
     setPasswordError('');
+    setEmailError('');
     setLoading(true);
 
     try {
-        // 0. Check if email exists using RPC (Requires SQL function 'check_email_exists' to be created in Supabase)
-        // Normalize email to ensure check works correctly
         const normalizedEmail = email.trim();
-
+        
+        // RPC call to check email existence
         const { data: exists, error: rpcError } = await supabase.rpc('check_email_exists', {
             email_input: normalizedEmail,
         });
 
-        // STRICT CHECK: If RPC fails, stop here. Do not proceed to SignUp.
         if (rpcError) {
             console.error("RPC Error:", rpcError);
-            alert('システム設定エラー: 重複チェック機能が正しく動作していません。\nSupabaseのSQL Editorで関数「check_email_exists」が作成されているか確認してください。');
+            alert(`システム設定エラー: 重複チェック機能が見つかりません。\n\nSupabaseのSQL Editorで以下の関数を作成してください:\ncheck_email_exists`);
             setLoading(false);
             return;
         }
 
         if (exists) {
-            alert('このメールアドレスは既に登録されています。\nログイン画面へ移動します。');
-            onNavigate({ view: 'login' });
+            setEmailError('このメールアドレスは既に登録されています。ログインしてください。');
             setLoading(false);
             return;
         }
 
-        // 1. Sign up user
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // 1. Sign Up
+        const { error } = await supabase.auth.signUp({
             email: normalizedEmail,
-            password,
+            password: password,
         });
 
-        if (authError) {
-            if (authError.message.includes('User already registered')) {
-                 alert('このメールアドレスは既に登録されています。\nログイン画面へ移動します。');
-                 onNavigate({ view: 'login' });
+        if (error) {
+            if (error.message.includes('already registered')) {
+                 setEmailError('このメールアドレスは既に登録されています。');
             } else {
-                 alert('登録エラー: ' + authError.message);
+                 alert('登録に失敗しました: ' + error.message);
             }
-            setLoading(false);
-            return;
-        }
-
-        // Start cooldown to prevent spamming
-        setCooldown(60);
-        const interval = setInterval(() => {
-            setCooldown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(interval);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-
-        // 2. Check if email confirmation is required (no session immediately available)
-        if (authData.user && !authData.session) {
+        } else {
             setEmailSent(true);
-            setLoading(false);
-            return;
+            setCooldown(60);
+            const timer = setInterval(() => {
+                setCooldown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
         }
-
-        // If session exists (email auto-confirmed or not required), App.tsx auth listener handles navigation
-        setLoading(false);
-
-    } catch (error: any) {
-        console.error("Signup error:", error);
+    } catch (err) {
+        console.error(err);
         alert('予期せぬエラーが発生しました。');
+    } finally {
         setLoading(false);
     }
   };
 
-  const isFormValid = email && password && agreedToTerms;
-
   if (emailSent) {
-    return (
-      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
-         <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6 animate-bounce-small">
-                <Icon name="check-circle" className="w-12 h-12 text-green-500" />
-            </div>
-            <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">確認メールを送信しました</h1>
-            <p className="text-neutral-600 dark:text-neutral-400 mb-8 leading-relaxed">
-                <span className="font-semibold text-neutral-800 dark:text-neutral-200">{email}</span> 宛に<br/>
-                確認メールを送信しました。<br/><br/>
-                メール内のリンクをクリックして、<br/>
-                登録を完了してください。<br/>
-                <span className="text-xs text-neutral-400 mt-4 block">
-                    ※メールが届かない場合は、迷惑メールフォルダを確認するか、すでに登録済みの可能性があります。
-                </span>
-            </p>
-            <button
-                onClick={() => onNavigate({ view: 'login' })}
-                className="w-full max-w-sm px-6 py-4 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 font-semibold transition-colors hover:bg-neutral-300 dark:hover:bg-neutral-700 active:scale-95"
-            >
-                ログイン画面へ戻る
-            </button>
-         </main>
-          <style>{`
-            .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            .animate-bounce-small { animation: bounceSmall 2s infinite; }
-            @keyframes bounceSmall { 
-                0%, 100% { transform: translateY(0); } 
-                50% { transform: translateY(-5px); } 
-            }
-        `}</style>
-      </div>
-    );
+      return (
+        <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
+             <header className="flex-shrink-0 flex items-center p-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+                <button onClick={() => onNavigate({ view: 'welcome' })} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                <Icon name="x-mark" className="w-6 h-6" />
+                </button>
+            </header>
+
+            <main className="flex-1 flex flex-col justify-center p-8 text-center">
+                <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Icon name="bell" className="w-10 h-10 text-green-500" />
+                </div>
+                <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">確認メールを送信しました</h1>
+                <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed mb-8">
+                    <strong>{email}</strong> 宛に確認メールを送信しました。<br/>
+                    メール内のリンクをクリックして、登録を完了してください。
+                </p>
+                
+                <div className="bg-neutral-100 dark:bg-neutral-800 p-4 rounded-xl text-sm text-left mb-8">
+                    <p className="font-bold mb-2 text-neutral-700 dark:text-neutral-200">メールが届かない場合：</p>
+                    <ul className="list-disc list-inside space-y-1 text-neutral-500 dark:text-neutral-400">
+                        <li>迷惑メールフォルダをご確認ください</li>
+                        <li>メールアドレスが正しいか確認してください</li>
+                    </ul>
+                </div>
+
+                <button
+                    onClick={() => onNavigate({ view: 'login' })}
+                    className="w-full px-6 py-4 rounded-xl bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 font-semibold transition-colors hover:bg-neutral-300 dark:hover:bg-neutral-600 active:scale-95"
+                >
+                    ログイン画面へ戻る
+                </button>
+                
+                 {cooldown > 0 && (
+                    <p className="mt-4 text-xs text-neutral-400">
+                        メールを再送信するには {cooldown} 秒お待ちください
+                    </p>
+                )}
+            </main>
+        </div>
+      );
   }
 
   return (
@@ -175,49 +165,54 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => 
           <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-100">新規登録</h1>
         </div>
         
-        <form onSubmit={handleSignUpSubmit} className="space-y-4">
+        <form onSubmit={handleSignUpSubmit} className="space-y-6">
           <div>
             <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400">メールアドレス</label>
             <TextInput
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailError('');
+              }}
               placeholder="email@example.com"
               required
               className="mt-2"
+              error={!!emailError}
             />
+            {emailError && <p className="text-xs text-red-500 mt-1 font-semibold">{emailError}</p>}
           </div>
           <div>
             <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400">パスワード</label>
             <TextInput
-              error={!!passwordError}
               type="password"
               value={password}
               onChange={(e) => {
                   setPassword(e.target.value);
-                  if (passwordError && e.target.value.length >= 12) setPasswordError('');
+                  if (e.target.value.length >= 12) setPasswordError('');
               }}
-              placeholder="••••••••••••"
+              placeholder="12文字以上"
               required
               className="mt-2"
+              error={!!passwordError}
             />
             {passwordError && <p className="text-xs text-red-500 mt-1 font-semibold">{passwordError}</p>}
-            <p className="text-xs text-neutral-400 mt-1">12文字以上で入力してください</p>
+            <p className="text-xs text-neutral-400 mt-1">セキュリティのため、12文字以上で設定してください</p>
           </div>
           
-           <div className="pt-2">
-                <Checkbox checked={agreedToTerms} onChange={setAgreedToTerms}>
-                    <a href="#" className="underline">利用規約</a>と<a href="#" className="underline">プライバシーポリシー</a>に同意します。
-                </Checkbox>
-            </div>
+          <div className="pt-2">
+            <Checkbox checked={agreedToTerms} onChange={setAgreedToTerms}>
+                <span className="underline">利用規約</span>と<span className="underline">プライバシーポリシー</span>に同意します
+            </Checkbox>
+          </div>
 
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full px-6 py-4 rounded-xl bg-gradient-to-br from-[#FF5252] to-[#E63946] text-white font-semibold shadow-lg shadow-[#FF5252]/30 transition-transform active:scale-95 disabled:opacity-50"
-              disabled={!isFormValid || loading || cooldown > 0}
+              className="w-full px-6 py-4 rounded-xl bg-gradient-to-br from-[#FF5252] to-[#E63946] text-white font-semibold shadow-lg shadow-[#FF5252]/30 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!email || !password || !agreedToTerms || loading || cooldown > 0}
             >
-              {loading ? '登録中...' : cooldown > 0 ? `${cooldown}秒後に再試行` : 'アカウントを作成'}
+              {loading ? '登録処理中...' : 'アカウントを作成'}
             </button>
           </div>
         </form>
