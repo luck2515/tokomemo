@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Spot } from '../types';
 import { Icon } from '../constants';
@@ -9,9 +10,9 @@ interface AiCompletionModalProps {
   onApply: (spotId: string, completionData: Partial<Spot>) => void;
 }
 
-const DiffRow: React.FC<{ label: string, original?: string | string[], completed?: string | string[] }> = ({ label, original, completed }) => {
-    const originalText = Array.isArray(original) ? original.join(', ') : original;
-    const completedText = Array.isArray(completed) ? completed.join(', ') : completed;
+const DiffRow: React.FC<{ label: string, original?: string | string[] | number, completed?: string | string[] | number }> = ({ label, original, completed }) => {
+    const originalText = Array.isArray(original) ? original.join(', ') : original?.toString();
+    const completedText = Array.isArray(completed) ? completed.join(', ') : completed?.toString();
 
     if (!completedText || originalText === completedText) return null;
 
@@ -19,7 +20,7 @@ const DiffRow: React.FC<{ label: string, original?: string | string[], completed
         <div className="py-3 border-b border-neutral-200 dark:border-neutral-700">
             <p className="text-xs font-bold uppercase text-neutral-500 tracking-wider">{label}</p>
             {originalText && <p className="text-sm text-neutral-400 line-through mt-1">{originalText}</p>}
-            <p className="text-base font-medium text-green-500 mt-1">{completedText}</p>
+            <p className="text-base font-medium text-green-500 mt-1 whitespace-pre-wrap">{completedText}</p>
         </div>
     )
 }
@@ -65,9 +66,12 @@ const AiCompletionModal: React.FC<AiCompletionModalProps> = ({ spot, completionD
             <DiffRow label="スポット名" original={spot.name} completed={completionData.name} />
             <DiffRow label="住所" original={spot.address} completed={completionData.address} />
             <DiffRow label="電話番号" original={spot.phone} completed={completionData.phone} />
+            <DiffRow label="営業時間" original={spot.openingHours} completed={completionData.openingHours} />
+            <DiffRow label="最低予算" original={spot.priceMin} completed={completionData.priceMin} />
+            <DiffRow label="最高予算" original={spot.priceMax} completed={completionData.priceMax} />
+            <DiffRow label="支払い方法" original={spot.paymentMethods} completed={completionData.paymentMethods} />
             <DiffRow label="メモ" original={spot.memo} completed={completionData.memo} />
             <DiffRow label="タグ" original={spot.tags} completed={completionData.tags} />
-            <DiffRow label="営業時間" original={spot.openingHours} completed={completionData.openingHours} />
           </div>
         </main>
         

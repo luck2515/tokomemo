@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Icon } from '../constants';
 import { AppScreen } from '../types';
@@ -19,6 +20,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +38,72 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
     }
     setLoading(false);
   };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.href,
+    });
+
+    if (error) {
+        alert('送信に失敗しました: ' + error.message);
+    } else {
+        alert(`${email} 宛にパスワードリセットメールを送信しました。\nメール内のリンクを確認してください。`);
+        setIsResetMode(false);
+    }
+    setLoading(false);
+  };
+
+  if (isResetMode) {
+      return (
+        <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
+            <header className="flex-shrink-0 flex items-center p-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+                <button onClick={() => setIsResetMode(false)} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                <Icon name="arrow-left" className="w-6 h-6" />
+                </button>
+            </header>
+            
+            <main className="flex-1 flex flex-col justify-center p-8">
+                <div className="text-center mb-10">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Icon name="user" className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100">パスワードの再設定</h1>
+                    <p className="text-neutral-500 dark:text-neutral-400 mt-2 text-sm">
+                        登録したメールアドレスを入力してください。<br/>
+                        リセット用のリンクを送信します。
+                    </p>
+                </div>
+                
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                    <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400">メールアドレス</label>
+                    <TextInput
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    required
+                    className="mt-2"
+                    />
+                </div>
+                
+                <div className="pt-4">
+                    <button
+                    type="submit"
+                    className="w-full px-6 py-4 rounded-xl bg-neutral-800 dark:bg-neutral-700 text-white font-semibold shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                    disabled={!email || loading}
+                    >
+                    {loading ? '送信中...' : 'リセットメールを送信'}
+                    </button>
+                </div>
+                </form>
+            </main>
+        </div>
+      );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-900 animate-fade-in">
@@ -81,6 +149,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
               disabled={!email || !password || loading}
             >
               {loading ? 'ログイン中...' : 'ログイン'}
+            </button>
+          </div>
+
+          <div className="text-center mt-4">
+            <button type="button" onClick={() => setIsResetMode(true)} className="text-sm font-medium text-[#FF5252] hover:underline">
+                パスワードを忘れた場合
             </button>
           </div>
         </form>

@@ -14,6 +14,7 @@ import WelcomeScreen from './screens/WelcomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import SignUpScreen from './screens/SignUpScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
+import UpdatePasswordScreen from './screens/UpdatePasswordScreen';
 import { AppScreen, Spot, Visit, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
@@ -58,8 +59,15 @@ const App: React.FC = () => {
     });
 
     // Auth State Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+
+      if (event === 'PASSWORD_RECOVERY') {
+        setScreen({ view: 'update-password' });
+        setLoading(false);
+        return;
+      }
+
       if (session) {
         fetchProfileAndSpots(session.user.id);
       } else {
@@ -130,11 +138,15 @@ const App: React.FC = () => {
             // 2. Fetch Spots (Depend on profile for partner logic)
             await fetchSpots(userId, profileData.partner_id);
             setHasCompletedOnboarding(true); 
-            setScreen({ view: 'home' });
+            if (screen.view !== 'update-password') {
+                setScreen({ view: 'home' });
+            }
         } else {
              // Should not happen with self-healing, but fallback
              setHasCompletedOnboarding(true);
-             setScreen({ view: 'home' });
+             if (screen.view !== 'update-password') {
+                 setScreen({ view: 'home' });
+             }
         }
     } catch (e) {
         console.error("Init error", e);
@@ -247,6 +259,9 @@ const App: React.FC = () => {
     if (fields.phone !== undefined) dbFields.phone = fields.phone;
     if (fields.tags !== undefined) dbFields.tags = fields.tags;
     if (fields.openingHours !== undefined) dbFields.opening_hours = fields.openingHours;
+    if (fields.priceMin !== undefined) dbFields.price_min = fields.priceMin;
+    if (fields.priceMax !== undefined) dbFields.price_max = fields.priceMax;
+    if (fields.paymentMethods !== undefined) dbFields.payment_methods = fields.paymentMethods;
     
     if (Object.keys(dbFields).length > 0) {
       await supabase.from('spots').update(dbFields).eq('id', id);
@@ -271,6 +286,7 @@ const App: React.FC = () => {
       price_min: spotData.priceMin,
       price_max: spotData.priceMax,
       opening_hours: spotData.openingHours,
+      payment_methods: spotData.paymentMethods,
     };
 
     let savedSpotId = spotData.id;
@@ -422,6 +438,7 @@ const App: React.FC = () => {
     if (originalSpot) {
       setPreviousSpotState(originalSpot);
     }
+    
     handleUpdateSpot({ id: spotId, ...completionData });
     setShowUndo(true);
     setTimeout(() => setShowUndo(false), 10000);
@@ -437,7 +454,10 @@ const App: React.FC = () => {
           phone: previousSpotState.phone,
           memo: previousSpotState.memo,
           tags: previousSpotState.tags,
-          openingHours: previousSpotState.openingHours
+          openingHours: previousSpotState.openingHours,
+          priceMin: previousSpotState.priceMin,
+          priceMax: previousSpotState.priceMax,
+          paymentMethods: previousSpotState.paymentMethods
       });
       setPreviousSpotState(null);
     }
@@ -492,8 +512,11 @@ const App: React.FC = () => {
     return <SignUpScreen onSignUp={() => {}} onNavigate={handleNavigate} />;
   }
   
+  if (screen.view === 'update-password') {
+    return <UpdatePasswordScreen onNavigate={handleNavigate} />;
+  }
+  
   if (!hasCompletedOnboarding && screen.view !== 'onboarding') {
-       // Fallback if logic slips
        return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); setScreen({ view: 'home' }); }} />;
   }
 

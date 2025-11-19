@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Spot, Photo, AppScreen } from '../types';
 import { Icon } from '../constants';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabase';
 
 interface SpotFormProps {
@@ -11,18 +12,19 @@ interface SpotFormProps {
   onNavigate: (screen: AppScreen) => void;
 }
 
-const FormField: React.FC<{ label: string, children: React.ReactNode, description?: string }> = ({ label, children, description }) => (
+const FormField: React.FC<{ label: string, children: React.ReactNode, description?: string, error?: string }> = ({ label, children, description, error }) => (
     <div>
         <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">{label}</label>
         {description && <p className="text-xs text-neutral-500 mt-1">{description}</p>}
-        <div className="mt-2">{children}</div>
+        <div className={`mt-2 ${error ? 'border-red-500' : ''}`}>{children}</div>
+        {error && <p className="text-xs text-red-500 mt-1 font-semibold">{error}</p>}
     </div>
 );
 
-const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
+const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }> = ({ error, className, ...props }) => (
     <input 
         {...props} 
-        className={`w-full h-12 px-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200 ${props.className}`} 
+        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
     />
 );
 
@@ -151,6 +153,14 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
   const [phone, setPhone] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  
+  // Additional details
+  const [openingHours, setOpeningHours] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState('');
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const isEditing = !!spot;
@@ -164,57 +174,136 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
       setPhone(spot.phone || '');
       setTags(spot.tags || []);
       setPhotos(spot.photos || []);
+      setOpeningHours(spot.openingHours ? spot.openingHours.join('\n') : '');
+      setPriceMin(spot.priceMin?.toString() || '');
+      setPriceMax(spot.priceMax?.toString() || '');
+      setPaymentMethods(spot.paymentMethods ? spot.paymentMethods.join(', ') : '');
     }
   }, [spot]);
 
+  const validate = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    if (!name.trim()) {
+        newErrors.name = 'スポット名は必須です。';
+    }
+
+    if (url && !url.startsWith('http')) {
+        newErrors.url = 'URLは http または https で始まる必要があります。';
+    }
+
+    if (phone && !/^[0-9-+\s()]+$/.test(phone)) {
+        newErrors.phone = '電話番号の形式が正しくありません。';
+    }
+
+    if (priceMin && priceMax && parseInt(priceMin) > parseInt(priceMax)) {
+        newErrors.price = '最低予算は最高予算以下である必要があります。';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) {
-      alert('スポット名は必須です。');
-      return;
-    }
+    if (!validate()) return;
+    
     const spotData: Partial<Spot> & { id?: string } = {
-      id: spot?.id, name, url, memo, address, phone, tags, photos
+      id: spot?.id, 
+      name, 
+      url, 
+      memo, 
+      address, 
+      phone, 
+      tags, 
+      photos,
+      openingHours: openingHours ? openingHours.split('\n').filter(s => s.trim()) : undefined,
+      priceMin: priceMin ? parseInt(priceMin) : undefined,
+      priceMax: priceMax ? parseInt(priceMax) : undefined,
+      paymentMethods: paymentMethods ? paymentMethods.split(',').map(s => s.trim()).filter(s => s) : undefined
     };
     onSave(spotData);
     onClose();
   };
   
-    const handleAiFetch = async () => {
+  const handleAiFetch = async () => {
     if (!url) {
-      alert("URLを入力してください。");
+      setErrors(prev => ({ ...prev, url: "URLを入力してください。" }));
       return;
     }
+    
     setIsAiLoading(true);
+    setErrors({});
+
     try {
       if (!process.env.API_KEY) {
         throw new Error("API key is not configured.");
       }
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      const responseSchema = {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING, description: "The name of the place." },
-          address: { type: Type.STRING, description: "The full address of the place." },
-          phone: { type: Type.STRING, description: "The phone number of the place." },
-          openingHours: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of opening hours for each day." },
-          tags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Relevant tags for the place, like 'cafe', 'ramen', etc." },
-          memo: { type: Type.STRING, description: "A brief, interesting summary or description of the place." },
-        },
-      };
-
+      // Using Google Search tool to prevent hallucinations
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Extract key information for a restaurant, shop, or point of interest from the content of this URL: ${url}. Please provide details for the following fields. If information is not available, return an empty string or array for that field.`,
+        contents: `
+          以下のURLについて、Google検索を行い、店舗または場所の詳細情報を抽出してください。
+          
+          URL: ${url}
+
+          必ず以下のJSONフォーマットで出力してください。JSON以外のテキストは含めないでください。
+          
+          \`\`\`json
+          {
+            "name": "店舗名",
+            "address": "住所",
+            "phone": "電話番号",
+            "openingHours": ["月-金: 10:00-18:00", ...],
+            "tags": ["カフェ", "電源あり", ...],
+            "memo": "店舗の魅力や特徴の要約",
+            "priceMin": 1000,
+            "priceMax": 2000,
+            "paymentMethods": ["VISA", "PayPay", ...],
+            "recommendations": "おすすめメニューなど",
+            "access": "最寄り駅からのアクセス"
+          }
+          \`\`\`
+        `,
         config: {
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
+          tools: [{ googleSearch: {} }],
+          // responseMimeType: "application/json" is NOT allowed with tools
         },
       });
 
-      const jsonStr = response.text.trim();
-      const completionData = JSON.parse(jsonStr) as Partial<Spot>;
+      const text = response.text;
+      // Extract JSON from markdown code block
+      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+          throw new Error("Could not parse AI response");
+      }
+
+      const jsonStr = jsonMatch[1] || jsonMatch[0];
+      const rawData = JSON.parse(jsonStr);
+
+      // Process data specifically for Memo merging
+      let mergedMemo = rawData.memo || "";
+      if (rawData.recommendations) {
+          mergedMemo += `\n\n【おすすめ】\n${rawData.recommendations}`;
+      }
+      if (rawData.access) {
+          mergedMemo += `\n\n【アクセス】\n${rawData.access}`;
+      }
+      
+      const completionData: Partial<Spot> = {
+          name: rawData.name,
+          address: rawData.address,
+          phone: rawData.phone,
+          tags: rawData.tags,
+          openingHours: rawData.openingHours,
+          priceMin: rawData.priceMin,
+          priceMax: rawData.priceMax,
+          paymentMethods: rawData.paymentMethods,
+          memo: mergedMemo,
+      };
       
       if (spot?.id) {
          onNavigate({ view: 'ai-completion', spotId: spot.id, completionData });
@@ -224,6 +313,11 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
         setPhone(prev => completionData.phone || prev);
         setMemo(prev => completionData.memo || prev);
         setTags(current => [...new Set([...current, ...(completionData.tags || [])])]);
+        setOpeningHours(prev => completionData.openingHours ? completionData.openingHours.join('\n') : prev);
+        setPriceMin(prev => completionData.priceMin?.toString() || prev);
+        setPriceMax(prev => completionData.priceMax?.toString() || prev);
+        setPaymentMethods(prev => completionData.paymentMethods ? completionData.paymentMethods.join(', ') : prev);
+        
         alert('AIによる情報補完が完了しました。内容を確認して保存してください。');
       }
 
@@ -249,18 +343,18 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        <form id="spot-form" onSubmit={handleSubmit} className="space-y-6 p-4">
-          <FormField label="スポット名 *">
-            <TextInput type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="例：ブルーボトルコーヒー 渋谷カフェ" />
+        <form id="spot-form" onSubmit={handleSubmit} className="space-y-6 p-4 pb-20">
+          <FormField label="スポット名 *" error={errors.name}>
+            <TextInput error={!!errors.name} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="例：ブルーボトルコーヒー 渋谷カフェ" />
           </FormField>
           
           <FormField label="写真">
               <PhotoUploader photos={photos} setPhotos={setPhotos} />
           </FormField>
 
-          <FormField label="URL" description="URLからAIが情報を自動入力できます">
+          <FormField label="URL" description="URLからAIが情報を自動入力できます" error={errors.url}>
              <div className="flex items-center gap-2">
-                <TextInput type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
+                <TextInput error={!!errors.url} type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
                 <button type="button" onClick={handleAiFetch} disabled={isAiLoading} className="h-12 px-4 rounded-xl bg-neutral-200 dark:bg-neutral-700 font-semibold text-sm text-neutral-800 dark:text-neutral-100 flex items-center gap-2 flex-shrink-0 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors disabled:opacity-50 active:scale-95">
                     <Icon name="sparkles" className={`w-5 h-5 ${isAiLoading ? 'animate-spin' : ''}`} />
                     <span>{isAiLoading ? '取得中' : 'AI補完'}</span>
@@ -272,7 +366,7 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
             <TagInput tags={tags} setTags={setTags} />
           </FormField>
           
-          <FormField label="メモ">
+          <FormField label="メモ (概要・おすすめ・アクセス)">
             <TextArea placeholder="この場所についてのメモ..." value={memo} onChange={e => setMemo(e.target.value)} />
           </FormField>
 
@@ -280,8 +374,31 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate }
             <TextInput type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="東京都渋谷区..." />
           </FormField>
           
-          <FormField label="電話番号">
-            <TextInput type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="03-1234-5678" />
+          <FormField label="電話番号" error={errors.phone}>
+            <TextInput error={!!errors.phone} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="03-1234-5678" />
+          </FormField>
+
+          <FormField label="営業時間・定休日">
+            <TextArea rows={3} value={openingHours} onChange={e => setOpeningHours(e.target.value)} placeholder="月-金: 10:00-20:00&#13;&#10;土日: 11:00-21:00" />
+          </FormField>
+
+          <div className="grid grid-cols-2 gap-4">
+             <FormField label="最低予算" error={errors.price}>
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">¥</span>
+                    <TextInput type="number" value={priceMin} onChange={e => setPriceMin(e.target.value)} className="pl-7" placeholder="1000" />
+                </div>
+            </FormField>
+            <FormField label="最高予算">
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">¥</span>
+                    <TextInput type="number" value={priceMax} onChange={e => setPriceMax(e.target.value)} className="pl-7" placeholder="3000" />
+                </div>
+            </FormField>
+          </div>
+
+           <FormField label="支払い方法">
+            <TextInput type="text" value={paymentMethods} onChange={e => setPaymentMethods(e.target.value)} placeholder="VISA, PayPay, 現金..." />
           </FormField>
           
         </form>

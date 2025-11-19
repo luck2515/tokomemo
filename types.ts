@@ -1,3 +1,4 @@
+
 export type SpotStatus = "want_to_go" | "visited" | "revisit";
 
 export interface Photo {
@@ -66,4 +67,5 @@ export type AppScreen =
   | { view: 'welcome' }
   | { view: 'login' }
   | { view: 'signup' }
-  | { view: 'onboarding' };
+  | { view: 'onboarding' }
+  | { view: 'update-password' };

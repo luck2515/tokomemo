@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Spot, Visit, Photo } from '../types';
 import { Icon } from '../constants';
@@ -10,17 +11,18 @@ interface VisitFormModalProps {
   onSave: (spotId: string, visit: Visit) => void;
 }
 
-const FormField: React.FC<{ label: string, children: React.ReactNode }> = ({ label, children }) => (
+const FormField: React.FC<{ label: string, children: React.ReactNode, error?: string }> = ({ label, children, error }) => (
     <div>
         <label className="text-sm font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">{label}</label>
-        <div className="mt-2">{children}</div>
+        <div className={`mt-2 ${error ? 'border-red-500' : ''}`}>{children}</div>
+        {error && <p className="text-xs text-red-500 mt-1 font-semibold">{error}</p>}
     </div>
 );
 
-const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
+const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }> = ({ error, className, ...props }) => (
     <input 
         {...props} 
-        className="w-full h-12 px-4 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:border-[#FF6B6B] focus:ring-2 focus:ring-[#FF6B6B]/20 transition duration-200" 
+        className={`w-full h-12 px-4 rounded-xl border-2 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-200 dark:border-neutral-700 focus:border-[#FF6B6B] focus:ring-[#FF6B6B]/20'} bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 transition duration-200 ${className}`} 
     />
 );
 
@@ -140,6 +142,7 @@ const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, o
   const [bill, setBill] = useState('');
   const [memo, setMemo] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const isEditing = !!visit;
 
@@ -153,8 +156,22 @@ const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, o
     }
   }, [visit]);
 
+  const validate = () => {
+      const newErrors: {[key: string]: string} = {};
+      if (!visitedAt) {
+          newErrors.visitedAt = '訪問日は必須です。';
+      }
+      if (bill && (isNaN(parseFloat(bill)) || parseFloat(bill) < 0)) {
+          newErrors.bill = '費用は0以上の数値を入力してください。';
+      }
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+
     const visitData: Visit = {
       id: visit?.id || `new-${Date.now()}`, // Temporary ID for App.tsx to handle
       visitedAt,
@@ -182,8 +199,8 @@ const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, o
 
         <main className="flex-1 overflow-y-auto">
           <form id="visit-form" onSubmit={handleSubmit} className="space-y-6 p-4">
-            <FormField label="訪問日">
-              <TextInput type="date" value={visitedAt} onChange={e => setVisitedAt(e.target.value)} required />
+            <FormField label="訪問日" error={errors.visitedAt}>
+              <TextInput error={!!errors.visitedAt} type="date" value={visitedAt} onChange={e => setVisitedAt(e.target.value)} required />
             </FormField>
 
             <FormField label="評価">
@@ -194,10 +211,11 @@ const VisitFormModal: React.FC<VisitFormModalProps> = ({ spot, visit, onClose, o
                 <PhotoUploader photos={photos} setPhotos={setPhotos} />
             </FormField>
 
-            <FormField label="費用">
+            <FormField label="費用" error={errors.bill}>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400">¥</span>
                 <TextInput
+                  error={!!errors.bill}
                   type="number"
                   placeholder="0"
                   value={bill}
