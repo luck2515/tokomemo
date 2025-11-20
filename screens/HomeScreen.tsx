@@ -21,7 +21,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 6;
   const loaderRef = useRef<HTMLDivElement>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Persist viewMode
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+      if (typeof window !== 'undefined') {
+          return (localStorage.getItem('viewMode') as 'grid' | 'list') || 'grid';
+      }
+      return 'grid';
+  });
+
+  const handleToggleViewMode = () => {
+      setViewMode(prev => {
+          const next = prev === 'grid' ? 'list' : 'grid';
+          localStorage.setItem('viewMode', next);
+          return next;
+      });
+  };
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -176,7 +191,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
         onFilterChange={setFilters}
         availableTags={availableTags}
         viewMode={viewMode}
-        onToggleViewMode={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
+        onToggleViewMode={handleToggleViewMode}
       />
       {loading && displayedSpots.length === 0 ? (
         <div className={`p-4 gap-4 ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'flex flex-col'}`}>
