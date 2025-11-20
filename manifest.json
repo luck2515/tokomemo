@@ -1,0 +1,22 @@
+{
+  "name": "とこメモ",
+  "short_name": "とこメモ",
+  "description": "ふたりの思い出も、これからの予定も、これひとつ。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#FF5252",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2589/2589175.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2589/2589175.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
