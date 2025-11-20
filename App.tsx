@@ -153,8 +153,6 @@ const App: React.FC = () => {
             setProfile(profileData as UserProfile);
             
             // Determine Plan (Simulating DB subscription status via LocalStorage)
-            // Priority: Paid Couple > Paid Supporter > Free
-            // Note: Existence of partner_id does not imply paid Couple plan.
             const subscription = localStorage.getItem(`plan_subscription_${userId}`);
             
             if (subscription === 'couple') {
@@ -500,8 +498,6 @@ const App: React.FC = () => {
   };
 
   const handleChangePlan = (plan: 'free' | 'supporter') => {
-    // This fallback method is replaced by the checkout logic in SettingsScreen, 
-    // but kept for internal simple switching if needed (e.g. downgrade).
     if (!session) return;
     if (plan === 'free') {
         localStorage.removeItem(`plan_subscription_${session.user.id}`);
@@ -522,8 +518,8 @@ const App: React.FC = () => {
   if (!isSupabaseConfigured) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 p-8 text-center">
-        <div className="w-24 h-24 flex items-center justify-center bg-red-100 rounded-full mb-6">
-            <Icon name="computer-desktop" className="w-12 h-12 text-red-500" />
+        <div className="w-24 h-24 flex items-center justify-center bg-rose-100 rounded-full mb-6 animate-pulse">
+            <Icon name="computer-desktop" className="w-12 h-12 text-rose-500" />
         </div>
         <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">設定エラー</h1>
         <p className="text-neutral-600 dark:text-neutral-300 mb-6 leading-relaxed">
@@ -536,8 +532,13 @@ const App: React.FC = () => {
 
   if (loading) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-900">
-            <div className="animate-spin h-10 w-10 border-4 border-neutral-200 border-t-[#FF5252] rounded-full"></div>
+        <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#FF5252] to-[#ff8a80] animate-spin flex items-center justify-center shadow-xl shadow-rose-500/30">
+                  <div className="w-10 h-10 bg-neutral-50 dark:bg-neutral-900 rounded-full"></div>
+              </div>
+              <p className="mt-4 font-bold text-neutral-400 text-sm tracking-widest">LOADING</p>
+            </div>
         </div>
       );
   }
@@ -567,12 +568,13 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-sans selection:bg-[#FF5252]/30">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-sans selection:bg-rose-500/30">
       {isOffline && <OfflineBanner isOffline={isOffline} />}
 
       {['home', 'favorites', 'shared'].includes(screen.view) && <Header />}
       
-      <div className="pb-20 pt-14"> 
+      {/* Increased padding bottom for floating nav */}
+      <div className="pb-32 pt-14"> 
         {screen.view === 'home' && (
             <HomeScreen spots={spots} onNavigate={handleNavigate} view="home" userPlan={userPlan} />
         )}

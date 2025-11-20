@@ -3,13 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Tokomemo</title>
+    <title>とこメモ</title>
+    
+    <!-- Google Fonts: M PLUS Rounded 1c -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['"M PLUS Rounded 1c"', '-apple-system', 'BlinkMacSystemFont', '"Hiragino Kaku Gothic ProN"', '"Hiragino Sans"', 'sans-serif'],
+            },
             colors: {
               neutral: {
                 50: '#f9fafb',
@@ -22,6 +31,25 @@
                 700: '#374151',
                 800: '#1f2937',
                 900: '#111827',
+              },
+              rose: {
+                50: '#fff1f2',
+                100: '#ffe4e6',
+                200: '#fecdd3',
+                300: '#fda4af',
+                400: '#fb7185',
+                500: '#f43f5e', // Match FF5252 roughly or use brand
+                600: '#e11d48',
+                700: '#be123c',
+              }
+            },
+            animation: {
+              'float': 'float 6s ease-in-out infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
               }
             }
           }
@@ -35,7 +63,8 @@
         padding-right: env(safe-area-inset-right);
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
-        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", sans-serif;
+        /* font-family is set via tailwind config now */
+        
         /* Hide scrollbars */
         -ms-overflow-style: none;  /* IE and Edge */
         scrollbar-width: none;  /* Firefox */
@@ -57,7 +86,7 @@
 }
 </script>
 </head>
-  <body class="bg-white dark:bg-neutral-900">
+  <body class="bg-neutral-50 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 antialiased selection:bg-rose-500/30 selection:text-rose-900">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

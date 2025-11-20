@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Spot, AppScreen, FilterCriteria } from '../types';
 import SpotCard from '../components/SpotCard';
+import SpotListItem from '../components/SpotListItem';
 import SearchBar from '../components/SearchBar';
 import SpotCardSkeleton from '../components/skeletons/SpotCardSkeleton';
 import { EmptyState } from '../components/EmptyState';
@@ -20,6 +21,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 6;
   const loaderRef = useRef<HTMLDivElement>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -173,20 +175,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
         filters={filters}
         onFilterChange={setFilters}
         availableTags={availableTags}
+        viewMode={viewMode}
+        onToggleViewMode={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
       />
       {loading && displayedSpots.length === 0 ? (
-        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className={`p-4 gap-4 ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'flex flex-col'}`}>
           {Array.from({ length: 6 }).map((_, index) => <SpotCardSkeleton key={index} />)}
         </div>
       ) : displayedSpots.length > 0 ? (
         <>
-          <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className={`p-4 gap-4 ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'flex flex-col'}`}>
             {spotsWithAd.map(item => {
               if (item.id === 'ad-1') {
                 return <AdBanner key="ad-1" />;
               }
-              return (
+              return viewMode === 'grid' ? (
                 <SpotCard key={item.id} spot={item} onClick={() => onNavigate({ view: 'spot-detail', spotId: item.id })} />
+              ) : (
+                <SpotListItem key={item.id} spot={item} onClick={() => onNavigate({ view: 'spot-detail', spotId: item.id })} />
               );
             })}
           </div>

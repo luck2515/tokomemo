@@ -21,9 +21,10 @@ interface SettingsScreenProps {
 
 const SettingRow: React.FC<{ icon: string, label: string, onClick?: () => void, children?: React.ReactNode }> = ({ icon, label, onClick, children }) => (
   <button onClick={onClick} className={`w-full flex items-center p-4 bg-white dark:bg-neutral-800 first:rounded-t-xl last:rounded-b-xl text-left ${onClick ? 'active:bg-neutral-100 dark:active:bg-neutral-700' : ''}`}>
-    <Icon name="icon" className="w-6 h-6 text-neutral-500" />
-    <Icon name={icon} className="w-6 h-6 text-neutral-500" />
-    <span className="ml-4 flex-1 text-base font-medium text-neutral-800 dark:text-neutral-100">{label}</span>
+    <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 flex items-center justify-center text-neutral-500 dark:text-neutral-400 mr-4">
+        <Icon name={icon} className="w-5 h-5" />
+    </div>
+    <span className="flex-1 text-base font-medium text-neutral-800 dark:text-neutral-100">{label}</span>
     {children || (onClick && <Icon name="chevron-right" className="w-5 h-5 text-neutral-400" />)}
   </button>
 );
@@ -32,19 +33,20 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [processingPlanId, setProcessingPlanId] = useState<PlanId | null>(null);
 
   const limits = PLAN_LIMITS[userPlan];
   const currentPlanDetails = PLAN_DETAILS[userPlan];
 
-  const handleDeleteClick = async () => {
+  const executeDeleteAccount = async () => {
     if (isDeleting) return;
     setIsDeleting(true);
     try {
         await onDeleteAccount();
     } catch (e) {
-        // Error handling is done in App.tsx but we stop spinner here just in case
         setIsDeleting(false);
+        setShowDeleteConfirmModal(false);
     }
   };
 
@@ -61,8 +63,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
     setProcessingPlanId(planId);
     try {
       await initiateCheckout(planId);
-      // Note: createCheckout will redirect, so code below might not run if actual redirect happens.
-      // But for simulation, it reloads with query params.
     } catch (e) {
       console.error(e);
       alert('決済処理を開始できませんでした。');
@@ -83,7 +83,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
         <section>
           <h2 className="text-sm font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider px-4 mb-2">アカウント</h2>
           <div className="rounded-xl shadow-sm overflow-hidden">
-            <SettingRow icon="user" label="プラン" onClick={() => setShowPlanModal(true)}>
+            <SettingRow icon="credit-card" label="プラン" onClick={() => setShowPlanModal(true)}>
               <div className="flex items-center gap-2">
                   <span className={`font-semibold ${currentPlanDetails.color}`}>{currentPlanDetails.name}</span>
                   <Icon name="chevron-right" className="w-5 h-5 text-neutral-400" />
@@ -110,13 +110,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
         <section>
           <h2 className="text-sm font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider px-4 mb-2">表示設定</h2>
           <div className="rounded-xl shadow-sm overflow-hidden divide-y divide-neutral-100 dark:divide-neutral-700/50">
-            <div className="p-4 bg-white dark:bg-neutral-800">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Icon name="computer-desktop" className="w-6 h-6 text-neutral-500" />
-                  <span className="ml-4 text-base font-medium text-neutral-800 dark:text-neutral-100">テーマ</span>
-                </div>
-                <div className="flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+            <div className="p-4 bg-white dark:bg-neutral-800 flex items-center">
+               <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 flex items-center justify-center text-neutral-500 dark:text-neutral-400 mr-4">
+                  <Icon name="computer-desktop" className="w-5 h-5" />
+               </div>
+               <span className="flex-1 text-base font-medium text-neutral-800 dark:text-neutral-100">テーマ</span>
+               
+               <div className="flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
                   {(['system', 'light', 'dark'] as Theme[]).map(t => (
                     <button key={t} onClick={() => onThemeChange(t)} className={`p-1.5 rounded-md transition-colors capitalize ${theme === t ? 'bg-white dark:bg-neutral-600 text-[#FF5252] shadow-sm' : 'text-neutral-500'}`}>
                       {t === 'system' && <Icon name="computer-desktop" className="w-5 h-5" />}
@@ -125,7 +125,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
                     </button>
                   ))}
                 </div>
-              </div>
             </div>
           </div>
         </section>
@@ -133,19 +132,23 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
         <section>
           <div className="rounded-xl shadow-sm overflow-hidden mb-6">
             <button onClick={handleLogoutClick} className="w-full flex items-center p-4 bg-white dark:bg-neutral-800 active:bg-neutral-100 dark:active:bg-neutral-700">
-              <Icon name="log-out" className="w-6 h-6 text-neutral-500 dark:text-neutral-400" />
-              <span className="ml-4 flex-1 text-base font-medium text-neutral-500 dark:text-neutral-400">ログアウト</span>
+              <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 flex items-center justify-center text-neutral-500 dark:text-neutral-400 mr-4">
+                  <Icon name="log-out" className="w-5 h-5" />
+               </div>
+              <span className="ml-4 flex-1 text-left text-base font-medium text-neutral-500 dark:text-neutral-400">ログアウト</span>
             </button>
           </div>
 
           <div className="rounded-xl shadow-sm overflow-hidden">
-             <button onClick={handleDeleteClick} disabled={isDeleting} className="w-full flex items-center p-4 bg-red-50 dark:bg-red-900/10 active:bg-red-100 dark:active:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl disabled:opacity-50">
+             <button onClick={() => setShowDeleteConfirmModal(true)} disabled={isDeleting} className="w-full flex items-center p-4 bg-red-50 dark:bg-red-900/10 active:bg-red-100 dark:active:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl disabled:opacity-50">
               {isDeleting ? (
                    <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin mr-4" />
               ) : (
-                  <Icon name="user-minus" className="w-6 h-6 text-red-500" />
+                  <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-500 mr-4">
+                    <Icon name="user-minus" className="w-5 h-5" />
+                  </div>
               )}
-              <span className="ml-4 flex-1 text-base font-medium text-red-500">{isDeleting ? '処理中...' : 'アカウント削除（退会）'}</span>
+              <span className="ml-4 flex-1 text-left text-base font-medium text-red-500">{isDeleting ? '処理中...' : 'アカウント削除（退会）'}</span>
             </button>
           </div>
         </section>
@@ -248,8 +251,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
       {showLogoutModal && (
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-xl animate-scale-up">
-                <h3 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 mb-2">ログアウト</h3>
-                <p className="text-neutral-500 dark:text-neutral-400 mb-6 leading-relaxed">
+                <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                     <Icon name="log-out" className="w-6 h-6 text-neutral-500 dark:text-neutral-400" />
+                </div>
+                <h3 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 mb-2 text-center">ログアウト</h3>
+                <p className="text-neutral-500 dark:text-neutral-400 mb-6 leading-relaxed text-center text-sm">
                     本当にログアウトしますか？<br/>
                     次回利用時は再度ログインが必要です。
                 </p>
@@ -262,9 +268,39 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
                     </button>
                     <button 
                         onClick={executeLogout} 
-                        className="flex-1 py-3 rounded-xl bg-neutral-800 dark:bg-neutral-900 text-white font-semibold hover:bg-black transition-colors"
+                        className="flex-1 py-3 rounded-xl bg-neutral-900 dark:bg-neutral-600 text-white font-semibold hover:bg-black transition-colors"
                     >
                         ログアウト
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Account Deletion Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-xl animate-scale-up border-2 border-red-100 dark:border-red-900/30">
+                <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                     <Icon name="user-minus" className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-red-600 dark:text-red-500 mb-2 text-center">本当に退会しますか？</h3>
+                <p className="text-neutral-600 dark:text-neutral-300 mb-6 leading-relaxed text-center text-sm">
+                    <strong>この操作は取り消せません。</strong><br/>
+                    保存されたスポット、写真、訪問記録など<br/>全てのデータが完全に削除されます。
+                </p>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setShowDeleteConfirmModal(false)} 
+                        className="flex-1 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors"
+                    >
+                        キャンセル
+                    </button>
+                    <button 
+                        onClick={executeDeleteAccount} 
+                        className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                    >
+                        削除する
                     </button>
                 </div>
             </div>

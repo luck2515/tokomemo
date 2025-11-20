@@ -8,84 +8,80 @@ interface SpotCardProps {
   onClick: () => void;
 }
 
-const statusStyles: { [key in SpotStatus]: { badge: string; text: string; label: string } } = {
-  want_to_go: { badge: 'bg-[#FF5252]/90', text: 'text-white', label: '行きたい' },
-  visited: { badge: 'bg-[#10B981]/90', text: 'text-white', label: '行った' },
-  revisit: { badge: 'bg-[#F59E0B]/90', text: 'text-white', label: '再訪したい' },
+const statusStyles: { [key in SpotStatus]: { badge: string; text: string; label: string; icon: string } } = {
+  want_to_go: { badge: 'bg-rose-500/90', text: 'text-white', label: '行きたい', icon: 'bookmark' },
+  visited: { badge: 'bg-emerald-500/90', text: 'text-white', label: '行った', icon: 'check' },
+  revisit: { badge: 'bg-amber-500/90', text: 'text-white', label: '再訪', icon: 'sparkles' },
 };
 
 const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick }) => {
-  const { badge, text, label } = statusStyles[spot.status];
+  const { badge, text, label, icon } = statusStyles[spot.status];
 
   return (
     <div
-      className="bg-white dark:bg-neutral-800 rounded-xl overflow-hidden shadow-md hover:shadow-lg dark:shadow-black/20 active:scale-[0.98] transition-all duration-200 relative group cursor-pointer"
+      className="group relative bg-white dark:bg-neutral-800 rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] hover:-translate-y-1 border border-neutral-100 dark:border-neutral-700/50"
       onClick={onClick}
     >
+      {/* Image Container */}
       <div className="relative aspect-[4/3] overflow-hidden">
-        <img src={spot.coverPhotoUrl} alt={spot.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy"/>
-      </div>
-      
-      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-        <div className={`px-2 py-1 rounded-md text-[11px] font-bold backdrop-blur-sm shadow-md ${badge} ${text}`}>
-            {label}
+        <img 
+            src={spot.coverPhotoUrl} 
+            alt={spot.name} 
+            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" 
+            loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60 group-hover:opacity-70 transition-opacity"></div>
+        
+        {/* Floating Badge */}
+        <div className="absolute top-3 left-3 flex items-center gap-1 z-10">
+           <div className={`pl-2 pr-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm backdrop-blur-md flex items-center gap-1 ${badge} ${text}`}>
+                <Icon name={icon} className="w-3 h-3" />
+                {label}
+            </div>
+            {spot.isOpenNow && (
+                <div className="px-2 py-1 rounded-full text-[10px] font-bold shadow-sm bg-white/90 text-green-600 backdrop-blur-md">
+                    Open
+                </div>
+            )}
         </div>
-        {spot.isOpenNow && (
-            <div className="px-2 py-1 rounded-md text-[11px] font-bold backdrop-blur-sm shadow-md bg-green-500 text-white">
-                営業中
+
+        {/* Pin Button */}
+        {spot.isPinned && (
+             <div className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-sm z-10">
+                <Icon name="heart" className="w-4 h-4 text-white fill-white" />
             </div>
         )}
       </div>
-
-
-      {spot.isPinned && (
-        <div className="absolute top-2.5 right-2.5 w-7 h-7 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md">
-            <Icon name="heart" className="w-4 h-4 text-[#FF5252] fill-current" />
-        </div>
-      )}
-
-      <div className="p-3 flex flex-col gap-2">
-        <h3 className="font-semibold text-sm text-neutral-900 dark:text-white leading-snug-looser webkit-box-2-lines">{spot.name}</h3>
+      
+      {/* Content */}
+      <div className="p-4 flex flex-col gap-2">
+        <h3 className="font-bold text-[15px] text-neutral-800 dark:text-neutral-100 leading-tight line-clamp-2 group-hover:text-rose-500 transition-colors">
+            {spot.name}
+        </h3>
         
-        <div className="flex flex-col gap-2 flex-grow">
-            {spot.rating && (
-                <div className="flex items-center gap-1">
-                    <Icon name="star" className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">{spot.rating.toFixed(1)}</span>
-                    <span className="text-xs text-neutral-500">({spot.visitCount})</span>
-                </div>
-            )}
+        <div className="flex items-center justify-between mt-1">
+             <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-lg border border-amber-100 dark:border-amber-800/30">
+                <Icon name="star" className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">
+                    {spot.rating ? spot.rating.toFixed(1) : '-.-'}
+                </span>
+            </div>
             
-            <div className="flex flex-wrap gap-1.5">
-                {spot.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded-full text-[10px] font-medium">
-                    {tag}
+            <div className="text-[11px] text-neutral-400 font-medium">
+                {spot.visitCount > 0 ? `${spot.visitCount}回訪問` : '未訪問'}
+            </div>
+        </div>
+
+        {spot.tags.length > 0 && (
+             <div className="flex flex-wrap gap-1.5 mt-2 overflow-hidden h-6">
+                {spot.tags.slice(0, 3).map(tag => (
+                <span key={tag} className="text-[10px] font-medium text-neutral-400 dark:text-neutral-500">
+                    #{tag}
                 </span>
                 ))}
             </div>
-        </div>
-        
-        {spot.lastVisitDate && (
-            <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 pt-1 mt-auto border-t border-neutral-100 dark:border-neutral-700/50">
-                <Icon name="calendar" className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">
-                    最終訪問: {new Date(spot.lastVisitDate).toLocaleDateString('ja-JP')}
-                </span>
-            </div>
         )}
       </div>
-      <style>{`
-        .webkit-box-2-lines {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          height: 2.75em; /* line-height (1.375) * 2 */
-        }
-        .leading-snug-looser {
-            line-height: 1.375;
-        }
-      `}</style>
     </div>
   );
 };

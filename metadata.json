@@ -1,5 +1,5 @@
 {
-  "name": "Tokomemo",
+  "name": "とこメモ",
   "description": "A PWA for individuals and pairs to centrally manage spot information, visit records, photos, and AI completions. It aims to reduce input load while maintaining accurate records.",
   "requestFramePermissions": []
 }
