@@ -5,7 +5,6 @@ import { AppScreen } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface LoginScreenProps {
-  onLogin: () => void;
   onNavigate: (screen: AppScreen) => void;
 }
 
@@ -16,7 +15,7 @@ const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props)
     />
 );
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

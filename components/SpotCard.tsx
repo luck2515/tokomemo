@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Spot, SpotStatus } from '../types';
 import { Icon } from '../constants';
@@ -72,7 +73,7 @@ const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick, onTogglePin }) => {
             </div>
             
             <div className="text-[11px] text-neutral-400 font-medium">
-                {spot.visitCount > 0 ? `${spot.visitCount}回訪問` : '未訪問'}
+                {(spot.visitCount || 0) > 0 ? `${spot.visitCount}回訪問` : '未訪問'}
             </div>
         </div>
 

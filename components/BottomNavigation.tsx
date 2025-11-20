@@ -17,6 +17,8 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick, isMain 
       <button 
         onClick={onClick} 
         className="group focus:outline-none relative"
+        aria-label={label}
+        title={label}
       >
         <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#FF5252] to-[#ff8a80] text-white flex items-center justify-center shadow-xl shadow-rose-500/40 transform transition-all duration-300 group-active:scale-95 group-hover:shadow-rose-500/60 ring-4 ring-neutral-50 dark:ring-neutral-900 border border-white/10">
           <Icon name="plus" className="w-8 h-8 stroke-[2.5]" />
@@ -29,6 +31,8 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick, isMain 
     <button 
         onClick={onClick} 
         className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 active:scale-90 focus:outline-none group ${active ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700/50'}`}
+        aria-label={label}
+        title={label}
     >
       <Icon name={icon} className={`w-6 h-6 transition-transform duration-300 ${active ? 'scale-110 fill-current' : ''}`} />
     </button>

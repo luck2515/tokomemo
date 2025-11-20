@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Spot, SpotStatus } from '../types';
 import { Icon } from '../constants';
@@ -79,7 +80,7 @@ const SpotListItem: React.FC<SpotListItemProps> = ({ spot, onClick, onTogglePin 
             )}
             
             <div className="flex items-center gap-3 text-[11px] text-neutral-400 font-medium border-t border-neutral-100 dark:border-neutral-700/50 pt-1.5 mt-0.5">
-                 <span>{spot.visitCount > 0 ? `${spot.visitCount}回訪問` : '未訪問'}</span>
+                 <span>{(spot.visitCount || 0) > 0 ? `${spot.visitCount}回訪問` : '未訪問'}</span>
                  {spot.lastVisitDate && (
                      <span>最終: {new Date(spot.lastVisitDate).toLocaleDateString()}</span>
                  )}

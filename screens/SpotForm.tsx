@@ -283,7 +283,7 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate, 
         },
       });
 
-      const text = response.text;
+      const text = response.text || "";
       const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
       
       if (!jsonMatch) {

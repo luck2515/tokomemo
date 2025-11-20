@@ -9,7 +9,7 @@ const VerifyEmailScreen: React.FC = () => {
   const checkVerification = async () => {
     setLoading(true);
     // Refresh session to get latest email_confirmed_at
-    const { data: { session }, error } = await supabase.auth.refreshSession();
+    const { data: { session } } = await supabase.auth.refreshSession();
     
     if (session?.user.email_confirmed_at) {
         // Session update will trigger onAuthStateChange in App.tsx

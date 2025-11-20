@@ -283,7 +283,8 @@ const App: React.FC = () => {
     // Count photos owned by current user
     let photoCount = 0;
     spots.forEach(spot => {
-        spot.photos.forEach(p => {
+        // Fix: Using `_` for unused parameter to satisfy linter
+        spot.photos.forEach(_ => {
             if (spot.user_id === session.user.id) photoCount++; 
         });
         spot.visits.forEach(v => {
@@ -445,7 +446,8 @@ const App: React.FC = () => {
     setScreen({ view: 'spot-detail', spotId });
   };
 
-  const handleDeleteVisit = async (spotId: string, visitId: string) => {
+  // Fix: Unused spotId parameter
+  const handleDeleteVisit = async (_spotId: string, visitId: string) => {
     await supabase.from('photos').delete().eq('visit_id', visitId);
     await supabase.from('visits').delete().eq('id', visitId);
     if(session) fetchSpots(session.user.id, profile?.partner_id);
@@ -560,11 +562,11 @@ const App: React.FC = () => {
   }
 
   if (screen.view === 'login') {
-    return <LoginScreen onLogin={() => {}} onNavigate={handleNavigate} />;
+    return <LoginScreen onNavigate={handleNavigate} />;
   }
 
   if (screen.view === 'signup') {
-    return <SignUpScreen onSignUp={() => {}} onNavigate={handleNavigate} />;
+    return <SignUpScreen onNavigate={handleNavigate} />;
   }
   
   if (screen.view === 'update-password') {

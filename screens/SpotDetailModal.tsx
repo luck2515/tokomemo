@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Spot, Visit, SpotStatus, AppScreen, Photo } from '../types';
+import React, { useState } from 'react';
+import { Spot, Visit, SpotStatus, AppScreen } from '../types';
 import { Icon } from '../constants';
 import ActionSheet from '../components/ActionSheet';
 import StatusToggle from '../components/StatusToggle';

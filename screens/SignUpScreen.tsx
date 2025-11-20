@@ -5,7 +5,6 @@ import { AppScreen } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface SignUpScreenProps {
-  onSignUp: () => void;
   onNavigate: (screen: AppScreen) => void;
 }
 
@@ -28,7 +27,7 @@ const Checkbox: React.FC<{ checked: boolean, onChange: (checked: boolean) => voi
     </label>
 );
 
-const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUp, onNavigate }) => {
+const SignUpScreen: React.FC<SignUpScreenProps> = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
