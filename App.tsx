@@ -15,6 +15,7 @@ import LoginScreen from './screens/LoginScreen';
 import SignUpScreen from './screens/SignUpScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import UpdatePasswordScreen from './screens/UpdatePasswordScreen';
+import VerifyEmailScreen from './screens/VerifyEmailScreen';
 import Header from './components/Header';
 import { AppScreen, Spot, Visit, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
@@ -58,6 +59,12 @@ const App: React.FC = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
+        if (!session.user.email_confirmed_at) {
+           setScreen({ view: 'verify-email' });
+           setLoading(false);
+           return;
+        }
+
         // If coming back from payment success
         if (paymentSuccess && newPlan) {
              localStorage.setItem(`plan_subscription_${session.user.id}`, newPlan);
@@ -87,6 +94,11 @@ const App: React.FC = () => {
       }
 
       if (session) {
+        if (!session.user.email_confirmed_at) {
+           setScreen({ view: 'verify-email' });
+           setLoading(false);
+           return;
+        }
         fetchProfileAndSpots(session.user.id);
       } else {
         setSpots([]);
@@ -558,6 +570,10 @@ const App: React.FC = () => {
   if (screen.view === 'update-password') {
     return <UpdatePasswordScreen onNavigate={handleNavigate} />;
   }
+
+  if (screen.view === 'verify-email') {
+      return <VerifyEmailScreen />;
+  }
   
   if (!hasCompletedOnboarding && screen.view !== 'onboarding') {
        return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); setScreen({ view: 'home' }); }} />;
@@ -567,22 +583,24 @@ const App: React.FC = () => {
     return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); setScreen({ view: 'home' }); }} />;
   }
 
+  const showMainHeader = ['home', 'favorites', 'shared'].includes(screen.view);
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-sans selection:bg-rose-500/30">
       {isOffline && <OfflineBanner isOffline={isOffline} />}
 
-      {['home', 'favorites', 'shared'].includes(screen.view) && <Header />}
+      {showMainHeader && <Header />}
       
-      {/* Increased padding bottom for floating nav */}
-      <div className="pb-32 pt-14"> 
+      {/* Padding handled conditionally. If MainHeader is present, add pt-14. SettingsScreen has its own header. */}
+      <div className={`pb-32 ${showMainHeader ? 'pt-14' : ''}`}> 
         {screen.view === 'home' && (
-            <HomeScreen spots={spots} onNavigate={handleNavigate} view="home" userPlan={userPlan} />
+            <HomeScreen spots={spots} onNavigate={handleNavigate} view="home" userPlan={userPlan} onTogglePin={handleTogglePin} />
         )}
         {screen.view === 'favorites' && (
-            <HomeScreen spots={spots.filter(s => s.isPinned)} onNavigate={handleNavigate} view="favorites" userPlan={userPlan} />
+            <HomeScreen spots={spots.filter(s => s.isPinned)} onNavigate={handleNavigate} view="favorites" userPlan={userPlan} onTogglePin={handleTogglePin} />
         )}
         {screen.view === 'shared' && (
-            <HomeScreen spots={spots.filter(s => s.scope !== 'personal')} onNavigate={handleNavigate} view="shared" userPlan={userPlan} />
+            <HomeScreen spots={spots.filter(s => s.scope !== 'personal')} onNavigate={handleNavigate} view="shared" userPlan={userPlan} onTogglePin={handleTogglePin} />
         )}
         {screen.view === 'settings' && (
             <SettingsScreen 

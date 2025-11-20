@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Spot, SpotStatus } from '../types';
 import { Icon } from '../constants';
@@ -6,6 +5,7 @@ import { Icon } from '../constants';
 interface SpotCardProps {
   spot: Spot;
   onClick: () => void;
+  onTogglePin?: () => void;
 }
 
 const statusStyles: { [key in SpotStatus]: { badge: string; text: string; label: string; icon: string } } = {
@@ -14,7 +14,7 @@ const statusStyles: { [key in SpotStatus]: { badge: string; text: string; label:
   revisit: { badge: 'bg-amber-500/90', text: 'text-white', label: '再訪', icon: 'sparkles' },
 };
 
-const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick }) => {
+const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick, onTogglePin }) => {
   const { badge, text, label, icon } = statusStyles[spot.status];
 
   return (
@@ -45,12 +45,16 @@ const SpotCard: React.FC<SpotCardProps> = ({ spot, onClick }) => {
             )}
         </div>
 
-        {/* Pin Button */}
-        {spot.isPinned && (
-             <div className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-sm z-10">
-                <Icon name="heart" className="w-4 h-4 text-white fill-white" />
-            </div>
-        )}
+        {/* Pin Button - Interactive */}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onTogglePin) onTogglePin();
+          }}
+          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center border shadow-sm z-10 transition-all duration-200 hover:scale-110 active:scale-90 ${spot.isPinned ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white/20 backdrop-blur-md border-white/20 text-white hover:bg-white/30'}`}
+        >
+             <Icon name="heart" className={`w-4 h-4 ${spot.isPinned ? 'fill-white' : ''}`} />
+        </button>
       </div>
       
       {/* Content */}

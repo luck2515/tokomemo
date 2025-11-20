@@ -22,6 +22,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [isResetMode, setIsResetMode] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,11 +57,36 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigate }) => {
     if (error) {
         alert('送信に失敗しました: ' + error.message);
     } else {
-        alert(`${email} 宛にパスワードリセットメールを送信しました。\nメール内のリンクを確認してください。`);
-        setIsResetMode(false);
+        setResetEmailSent(true);
     }
     setLoading(false);
   };
+
+  if (resetEmailSent) {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 animate-fade-in p-6 text-center">
+            <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-blue-200/30 dark:bg-blue-500/10 rounded-full blur-[100px] animate-float" />
+
+            <div className="relative z-10 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full border border-white/50">
+                <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <Icon name="paper-airplane" className="w-10 h-10 text-blue-500" />
+                </div>
+                <h2 className="text-xl font-extrabold text-neutral-800 dark:text-neutral-100 mb-4">送信完了</h2>
+                <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed mb-8 font-medium">
+                    <strong>{email}</strong> 宛にパスワードリセット用のメールを送信しました。<br/>
+                    メール内のリンクから新しいパスワードを設定してください。
+                </p>
+
+                <button
+                    onClick={() => { setResetEmailSent(false); setIsResetMode(false); }}
+                    className="w-full py-4 rounded-2xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold shadow-lg hover:scale-[1.02] transition-all active:scale-95"
+                >
+                    ログイン画面に戻る
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-neutral-50 dark:bg-neutral-900 p-6 animate-fade-in">

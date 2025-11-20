@@ -67,6 +67,7 @@ export type AppScreen =
   | { view: 'welcome' }
   | { view: 'login' }
   | { view: 'signup' }
+  | { view: 'verify-email' }
   | { view: 'onboarding' }
   | { view: 'update-password' };
 

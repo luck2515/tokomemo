@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Spot, AppScreen, FilterCriteria } from '../types';
 import SpotCard from '../components/SpotCard';
@@ -13,9 +12,10 @@ interface HomeScreenProps {
   onNavigate: (screen: AppScreen) => void;
   view: 'home' | 'shared' | 'favorites';
   userPlan: 'free' | 'supporter' | 'couple';
+  onTogglePin: (spotId: string) => void;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate, view, userPlan }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate, view, userPlan, onTogglePin }) => {
   const [loading, setLoading] = useState(true);
   const [displayedSpots, setDisplayedSpots] = useState<Spot[]>([]);
   const [page, setPage] = useState(1);
@@ -190,9 +190,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ spots: initialSpots, onNavigate
                 return <AdBanner key="ad-1" />;
               }
               return viewMode === 'grid' ? (
-                <SpotCard key={item.id} spot={item} onClick={() => onNavigate({ view: 'spot-detail', spotId: item.id })} />
+                <SpotCard 
+                  key={item.id} 
+                  spot={item} 
+                  onClick={() => onNavigate({ view: 'spot-detail', spotId: item.id })} 
+                  onTogglePin={() => onTogglePin(item.id)}
+                />
               ) : (
-                <SpotListItem key={item.id} spot={item} onClick={() => onNavigate({ view: 'spot-detail', spotId: item.id })} />
+                <SpotListItem 
+                  key={item.id} 
+                  spot={item} 
+                  onClick={() => onNavigate({ view: 'spot-detail', spotId: item.id })}
+                  onTogglePin={() => onTogglePin(item.id)}
+                />
               );
             })}
           </div>
