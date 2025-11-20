@@ -12,7 +12,7 @@ interface SpotFormProps {
   onNavigate: (screen: AppScreen) => void;
   checkStorageLimit: (additional?: number) => boolean;
   checkAiLimit: () => boolean;
-  incrementAiUsage: () => void;
+  incrementAiUsage: () => Promise<void>;
 }
 
 const FormField: React.FC<{ label: string, children: React.ReactNode, description?: string, error?: string }> = ({ label, children, description, error }) => (
@@ -328,7 +328,7 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate, 
         setPriceMax(prev => completionData.priceMax?.toString() || prev);
         setPaymentMethods(prev => completionData.paymentMethods ? completionData.paymentMethods.join(', ') : prev);
         
-        incrementAiUsage();
+        await incrementAiUsage();
         alert('AIによる情報補完が完了しました。内容を確認して保存してください。');
       }
 

@@ -16,6 +16,9 @@ import SignUpScreen from './screens/SignUpScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import UpdatePasswordScreen from './screens/UpdatePasswordScreen';
 import VerifyEmailScreen from './screens/VerifyEmailScreen';
+import TermsScreen from './screens/TermsScreen';
+import PrivacyScreen from './screens/PrivacyScreen';
+import PwaInstallModal from './components/PwaInstallModal';
 import { AppScreen, Spot, Visit, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
@@ -34,11 +37,20 @@ const App: React.FC = () => {
   const [previousSpotState, setPreviousSpotState] = useState<Spot | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // AI Usage State (DB based)
+  const [aiUsageCount, setAiUsageCount] = useState(0);
+  
   // Settings
   const [theme, setTheme] = useState<Theme>('system');
 
   // Auth & Onboarding
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+
+  // PWA State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showPwaModal, setShowPwaModal] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   // --- Initialization & Auth ---
 
@@ -47,6 +59,19 @@ const App: React.FC = () => {
       setLoading(false);
       return;
     }
+
+    // PWA Installation Logic
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIosDevice);
+
+    const checkStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    setIsStandalone(checkStandalone);
 
     // Initial History State
     window.history.replaceState({ view: 'welcome' }, '');
@@ -82,6 +107,12 @@ const App: React.FC = () => {
         }
 
         fetchProfileAndSpots(session.user.id);
+
+        // Check if we should show PWA prompt (only once for user, if not installed)
+        const hasShownPwa = localStorage.getItem('pwa_prompt_shown');
+        if (!checkStandalone && !hasShownPwa) {
+             setTimeout(() => setShowPwaModal(true), 3000);
+        }
       } else {
         setLoading(false);
       }
@@ -111,6 +142,7 @@ const App: React.FC = () => {
       } else {
         setSpots([]);
         setProfile(null);
+        setAiUsageCount(0);
         const newScreen: AppScreen = { view: 'welcome' };
         setScreen(newScreen);
         window.history.replaceState(newScreen, '');
@@ -130,7 +162,6 @@ const App: React.FC = () => {
         window.scrollTo(0, 0);
       } else {
         // Fallback if state is null (e.g. initial load)
-        // usually keeps current screen or goes to home
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -140,6 +171,7 @@ const App: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -200,11 +232,14 @@ const App: React.FC = () => {
             
             // 2. Fetch Spots (Depend on profile for partner logic)
             await fetchSpots(userId, profileData.partner_id);
+            
+            // 3. Fetch AI Usage from DB
+            await fetchAiUsageCount(userId);
+
             setHasCompletedOnboarding(true); 
-            if (screen.view !== 'update-password') {
+            if (screen.view !== 'update-password' && screen.view !== 'terms' && screen.view !== 'privacy') {
                 const homeScreen: AppScreen = { view: 'home' };
                 setScreen(homeScreen);
-                // We replace state here because this is the "Root" of the logged-in experience
                 window.history.replaceState(homeScreen, '');
             }
         } else {
@@ -220,6 +255,22 @@ const App: React.FC = () => {
     } finally {
         setLoading(false);
     }
+  };
+
+  const fetchAiUsageCount = async (userId: string) => {
+      const now = new Date();
+      // Get first day of current month
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      
+      const { count, error } = await supabase
+        .from('ai_usage_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', startOfMonth);
+
+      if (!error) {
+          setAiUsageCount(count || 0);
+      }
   };
 
   const fetchSpots = async (userId: string, partnerId?: string) => {
@@ -311,7 +362,6 @@ const App: React.FC = () => {
     // Count photos owned by current user
     let photoCount = 0;
     spots.forEach(spot => {
-        // Fix: Using `_` for unused parameter to satisfy linter
         spot.photos.forEach(_ => {
             if (spot.user_id === session.user.id) photoCount++; 
         });
@@ -322,13 +372,8 @@ const App: React.FC = () => {
         });
     });
 
-    // AI Usage from LocalStorage (Monthly)
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const aiKey = `ai_usage_${session.user.id}_${currentMonth}`;
-    const aiCount = parseInt(localStorage.getItem(aiKey) || '0');
-
-    return { photos: photoCount, ai: aiCount };
-  }, [spots, session]);
+    return { photos: photoCount, ai: aiUsageCount };
+  }, [spots, session, aiUsageCount]);
 
   const checkStorageLimit = (additional: number = 1) => {
       const limit = PLAN_LIMITS[userPlan].photos;
@@ -349,12 +394,17 @@ const App: React.FC = () => {
       return true;
   };
 
-  const incrementAiUsage = () => {
+  const incrementAiUsage = async () => {
       if (!session) return;
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const aiKey = `ai_usage_${session.user.id}_${currentMonth}`;
-      const newCount = usageStats.ai + 1;
-      localStorage.setItem(aiKey, newCount.toString());
+      try {
+          await supabase.from('ai_usage_logs').insert([{
+              user_id: session.user.id
+          }]);
+          // Refresh local count
+          await fetchAiUsageCount(session.user.id);
+      } catch (e) {
+          console.error('Failed to log AI usage', e);
+      }
   };
 
   // --- Actions ---
@@ -481,22 +531,22 @@ const App: React.FC = () => {
     handleGoBack();
   };
 
-  // Fix: Unused spotId parameter
   const handleDeleteVisit = async (_spotId: string, visitId: string) => {
     await supabase.from('photos').delete().eq('visit_id', visitId);
     await supabase.from('visits').delete().eq('id', visitId);
     if(session) fetchSpots(session.user.id, profile?.partner_id);
   };
 
-  const handleApplyAiCompletion = (spotId: string, completionData: Partial<Spot>) => {
+  const handleApplyAiCompletion = async (spotId: string, completionData: Partial<Spot>) => {
     const originalSpot = spots.find(s => s.id === spotId);
     if (originalSpot) setPreviousSpotState(originalSpot);
+    
+    await incrementAiUsage();
+    
     handleUpdateSpot({ id: spotId, ...completionData });
     setShowUndo(true);
     setTimeout(() => setShowUndo(false), 10000);
-    // Go back from AI completion modal to Spot Form
     handleGoBack();
-    incrementAiUsage(); 
   };
 
   const handleUndo = () => {
@@ -525,12 +575,10 @@ const App: React.FC = () => {
   const handleDeleteAccount = async () => {
       if (!session) return;
       try {
-          // Try to delete profile. This requires RLS policy or cascading delete.
           const { error } = await supabase.from('profiles').delete().eq('id', session.user.id);
           
           if (error) {
              console.error("Delete profile error:", error);
-             // Fallback or specific handling
              throw new Error("プロフィールの削除に失敗しました。データベースの削除ポリシーを確認してください。");
           }
           
@@ -539,7 +587,6 @@ const App: React.FC = () => {
       } catch (e: any) {
           console.error(e);
           alert("退会処理に失敗しました: " + e.message);
-          // Re-throw to let the component know to stop spinning
           throw e;
       }
   };
@@ -551,6 +598,23 @@ const App: React.FC = () => {
         setUserPlan('free');
         alert('フリープランに変更しました。');
     }
+  };
+
+  const handleInstallApp = () => {
+      if (isIOS) {
+          setShowPwaModal(true);
+      } else if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult: any) => {
+              if (choiceResult.outcome === 'accepted') {
+                  console.log('User accepted the A2HS prompt');
+              }
+              setDeferredPrompt(null);
+              setShowPwaModal(false);
+          });
+      } else {
+          alert('お使いの環境はインストールに対応していないか、すでにインストールされています。');
+      }
   };
 
   const activeTab = useMemo(() => {
@@ -609,6 +673,14 @@ const App: React.FC = () => {
   if (screen.view === 'verify-email') {
       return <VerifyEmailScreen />;
   }
+
+  if (screen.view === 'terms') {
+      return <TermsScreen onBack={handleGoBack} />;
+  }
+
+  if (screen.view === 'privacy') {
+      return <PrivacyScreen onBack={handleGoBack} />;
+  }
   
   if (!hasCompletedOnboarding && screen.view !== 'onboarding') {
        return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); handleNavigate({ view: 'home' }); }} />;
@@ -643,6 +715,8 @@ const App: React.FC = () => {
                 onDeleteAccount={handleDeleteAccount}
                 usageStats={usageStats}
                 onChangePlan={handleChangePlan}
+                onInstallApp={handleInstallApp}
+                isPwaInstalled={isStandalone}
             />
         )}
       </div>
@@ -698,6 +772,17 @@ const App: React.FC = () => {
             currentUser={profile}
           />
       )}
+      
+      {/* PWA Install Modal */}
+      <PwaInstallModal 
+        isOpen={showPwaModal} 
+        onClose={() => {
+            setShowPwaModal(false);
+            localStorage.setItem('pwa_prompt_shown', 'true');
+        }}
+        onInstall={handleInstallApp}
+        platform={isIOS ? 'ios' : 'android'}
+      />
 
       <UndoToast isVisible={showUndo} onUndo={handleUndo} message="変更を元に戻せます" />
 
@@ -711,3 +796,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+    

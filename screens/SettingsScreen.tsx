@@ -17,6 +17,8 @@ interface SettingsScreenProps {
   onDeleteAccount: () => Promise<void>;
   usageStats: { photos: number, ai: number };
   onChangePlan: (plan: 'free' | 'supporter') => void;
+  onInstallApp: () => void;
+  isPwaInstalled: boolean;
 }
 
 const SettingRow: React.FC<{ icon: string, label: string, onClick?: () => void, children?: React.ReactNode }> = ({ icon, label, onClick, children }) => (
@@ -29,7 +31,7 @@ const SettingRow: React.FC<{ icon: string, label: string, onClick?: () => void, 
   </button>
 );
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, userPlan, onLogout, theme, onThemeChange, onDeleteAccount, usageStats, onChangePlan }) => {
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, userPlan, onLogout, theme, onThemeChange, onDeleteAccount, usageStats, onChangePlan, onInstallApp, isPwaInstalled }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -80,6 +82,27 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
       </header>
       
       <main className="p-4 space-y-6 pb-10">
+        {/* App Installation Banner */}
+        {!isPwaInstalled && (
+             <div className="bg-gradient-to-br from-neutral-800 to-neutral-900 dark:from-white dark:to-neutral-200 rounded-xl p-5 text-white dark:text-neutral-900 shadow-lg">
+                 <div className="flex items-start gap-4">
+                     <div className="w-12 h-12 bg-white/10 dark:bg-black/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                         <Icon name="computer-desktop" className="w-6 h-6" />
+                     </div>
+                     <div>
+                         <h3 className="font-bold text-lg mb-1">アプリをインストール</h3>
+                         <p className="text-sm text-white/80 dark:text-neutral-700 mb-4">ホーム画面に追加して、オフラインでも快適に利用しましょう。</p>
+                         <button 
+                            onClick={onInstallApp}
+                            className="px-4 py-2 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white font-bold rounded-lg text-sm hover:scale-105 transition-transform"
+                         >
+                             インストール
+                         </button>
+                     </div>
+                 </div>
+             </div>
+        )}
+
         <section>
           <h2 className="text-sm font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider px-4 mb-2">アカウント</h2>
           <div className="rounded-xl shadow-sm overflow-hidden">
@@ -126,6 +149,14 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
                   ))}
                 </div>
             </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider px-4 mb-2">その他</h2>
+          <div className="rounded-xl shadow-sm overflow-hidden">
+            <SettingRow icon="document-duplicate" label="利用規約" onClick={() => onNavigate({ view: 'terms' })} />
+            <SettingRow icon="lock-closed" label="プライバシーポリシー" onClick={() => onNavigate({ view: 'privacy' })} />
           </div>
         </section>
 

@@ -109,7 +109,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onNavigate }) => {
 
   if (emailSent) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 animate-fade-in p-6 text-center">
+        <div className="h-[100svh] flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 animate-fade-in p-6 text-center relative overflow-hidden">
              <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-green-200/30 dark:bg-green-500/10 rounded-full blur-[100px] animate-float" />
 
             <div className="relative z-10 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full border border-white/50">
@@ -140,7 +140,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-neutral-50 dark:bg-neutral-900 p-6 animate-fade-in">
+    <div className="h-[100svh] flex flex-col items-center justify-center relative overflow-hidden bg-neutral-50 dark:bg-neutral-900 p-6 animate-fade-in">
       
        {/* Mesh Gradient Background */}
       <div className="absolute top-[-10%] left-[-20%] w-[80%] h-[70%] bg-rose-200/30 dark:bg-rose-500/10 rounded-full blur-[100px] animate-float" />
@@ -199,7 +199,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onNavigate }) => {
                 
                 <div className="pt-2 pl-1">
                     <Checkbox checked={agreedToTerms} onChange={setAgreedToTerms}>
-                        <span className="underline hover:text-rose-500 transition-colors">利用規約</span>と<span className="underline hover:text-rose-500 transition-colors">プライバシーポリシー</span>に同意します
+                        <button type="button" onClick={() => onNavigate({ view: 'terms' })} className="underline hover:text-rose-500 transition-colors">利用規約</button>と<button type="button" onClick={() => onNavigate({ view: 'privacy' })} className="underline hover:text-rose-500 transition-colors">プライバシーポリシー</button>に同意します
                     </Checkbox>
                 </div>
 

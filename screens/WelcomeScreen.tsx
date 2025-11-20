@@ -47,7 +47,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigate }) => {
           ログイン
         </button>
         <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-6 font-medium px-4">
-          利用を開始することで、<a href="#" className="underline hover:text-neutral-600">利用規約</a>と<a href="#" className="underline hover:text-neutral-600">プライバシーポリシー</a>に同意したことになります。
+          利用を開始することで、<button onClick={() => onNavigate({ view: 'terms' })} className="underline hover:text-neutral-600">利用規約</button>と<button onClick={() => onNavigate({ view: 'privacy' })} className="underline hover:text-neutral-600">プライバシーポリシー</button>に同意したことになります。
         </p>
       </div>
     </div>

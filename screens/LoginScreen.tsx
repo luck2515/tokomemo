@@ -63,7 +63,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate }) => {
 
   if (resetEmailSent) {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 animate-fade-in p-6 text-center">
+        <div className="h-[100svh] flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900 animate-fade-in p-6 text-center relative overflow-hidden">
             <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-blue-200/30 dark:bg-blue-500/10 rounded-full blur-[100px] animate-float" />
 
             <div className="relative z-10 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full border border-white/50">
@@ -88,7 +88,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-neutral-50 dark:bg-neutral-900 p-6 animate-fade-in">
+    <div className="h-[100svh] flex flex-col items-center justify-center relative overflow-hidden bg-neutral-50 dark:bg-neutral-900 p-6 animate-fade-in">
       
       {/* Mesh Gradient Background */}
       <div className="absolute top-[-10%] right-[-20%] w-[80%] h-[70%] bg-rose-200/30 dark:bg-rose-500/10 rounded-full blur-[100px] animate-float" />

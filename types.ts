@@ -69,7 +69,9 @@ export type AppScreen =
   | { view: 'signup' }
   | { view: 'verify-email' }
   | { view: 'onboarding' }
-  | { view: 'update-password' };
+  | { view: 'update-password' }
+  | { view: 'terms' }
+  | { view: 'privacy' };
 
 export type SortOption = 'created_desc' | 'name_asc' | 'rating_desc' | 'latest_visit';
 
