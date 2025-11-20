@@ -48,10 +48,28 @@ const App: React.FC = () => {
       return;
     }
 
+    // Check for payment callbacks (Simulating Stripe Return)
+    const params = new URLSearchParams(window.location.search);
+    const paymentSuccess = params.get('payment_success');
+    const paymentCanceled = params.get('payment_canceled');
+    const newPlan = params.get('plan');
+
     // Initial Session Check
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
+        // If coming back from payment success
+        if (paymentSuccess && newPlan) {
+             localStorage.setItem(`plan_subscription_${session.user.id}`, newPlan);
+             window.history.replaceState({}, '', '/');
+             alert('プランの変更が完了しました！ありがとうございます。');
+        }
+        // If coming back from payment cancel
+        else if (paymentCanceled) {
+            window.history.replaceState({}, '', '/');
+            alert('決済手続きがキャンセルされました。');
+        }
+
         fetchProfileAndSpots(session.user.id);
       } else {
         setLoading(false);
@@ -134,13 +152,17 @@ const App: React.FC = () => {
         if (profileData) {
             setProfile(profileData as UserProfile);
             
-            // Determine Plan
-            if (profileData.partner_id) {
+            // Determine Plan (Simulating DB subscription status via LocalStorage)
+            // Priority: Paid Couple > Paid Supporter > Free
+            // Note: Existence of partner_id does not imply paid Couple plan.
+            const subscription = localStorage.getItem(`plan_subscription_${userId}`);
+            
+            if (subscription === 'couple') {
                 setUserPlan('couple');
+            } else if (subscription === 'supporter') {
+                setUserPlan('supporter');
             } else {
-                // Check local storage for supporter status (Mock for MVP)
-                const isSupporter = localStorage.getItem(`is_supporter_${userId}`) === 'true';
-                setUserPlan(isSupporter ? 'supporter' : 'free');
+                setUserPlan('free');
             }
             
             // 2. Fetch Spots (Depend on profile for partner logic)
@@ -478,13 +500,11 @@ const App: React.FC = () => {
   };
 
   const handleChangePlan = (plan: 'free' | 'supporter') => {
+    // This fallback method is replaced by the checkout logic in SettingsScreen, 
+    // but kept for internal simple switching if needed (e.g. downgrade).
     if (!session) return;
-    if (plan === 'supporter') {
-        localStorage.setItem(`is_supporter_${session.user.id}`, 'true');
-        setUserPlan('supporter');
-        alert('サポータープランに変更しました！ご支援ありがとうございます。');
-    } else {
-        localStorage.removeItem(`is_supporter_${session.user.id}`);
+    if (plan === 'free') {
+        localStorage.removeItem(`plan_subscription_${session.user.id}`);
         setUserPlan('free');
         alert('フリープランに変更しました。');
     }

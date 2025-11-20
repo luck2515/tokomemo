@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Icon, PLAN_LIMITS } from '../constants';
+import { Icon, PLAN_LIMITS, PLAN_DETAILS } from '../constants';
 import { AppScreen } from '../types';
 import StorageMeter from '../components/StorageMeter';
+import { initiateCheckout, PlanId } from '../lib/payment';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -31,14 +32,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-  const planDetails = {
-    free: { name: 'フリープラン', color: 'text-neutral-500' },
-    supporter: { name: 'サポーター', color: 'text-green-500' },
-    couple: { name: 'カップルプラン', color: 'text-rose-500' },
-  };
+  const [processingPlanId, setProcessingPlanId] = useState<PlanId | null>(null);
 
   const limits = PLAN_LIMITS[userPlan];
+  const currentPlanDetails = PLAN_DETAILS[userPlan];
 
   const handleDeleteClick = async () => {
     if (isDeleting) return;
@@ -60,6 +57,19 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
       onLogout();
   };
 
+  const handlePlanSelection = async (planId: PlanId) => {
+    setProcessingPlanId(planId);
+    try {
+      await initiateCheckout(planId);
+      // Note: createCheckout will redirect, so code below might not run if actual redirect happens.
+      // But for simulation, it reloads with query params.
+    } catch (e) {
+      console.error(e);
+      alert('決済処理を開始できませんでした。');
+      setProcessingPlanId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-900">
       <header className="sticky top-0 z-30 flex items-center p-2 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-700/80" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
@@ -75,7 +85,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
           <div className="rounded-xl shadow-sm overflow-hidden">
             <SettingRow icon="user" label="プラン" onClick={() => setShowPlanModal(true)}>
               <div className="flex items-center gap-2">
-                  <span className={`font-semibold ${planDetails[userPlan].color}`}>{planDetails[userPlan].name}</span>
+                  <span className={`font-semibold ${currentPlanDetails.color}`}>{currentPlanDetails.name}</span>
                   <Icon name="chevron-right" className="w-5 h-5 text-neutral-400" />
               </div>
             </SettingRow>
@@ -144,40 +154,88 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigate, use
       {/* Plan Change Modal */}
       {showPlanModal && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-              <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-md shadow-xl animate-scale-up">
-                  <div className="flex justify-between items-center mb-4">
+              <div className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-md shadow-xl animate-scale-up max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">プラン変更</h3>
                       <button onClick={() => setShowPlanModal(false)} className="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700">
                           <Icon name="x-mark" className="w-6 h-6" />
                       </button>
                   </div>
                   
-                  <div className="space-y-3">
-                      <button onClick={() => { onChangePlan('free'); setShowPlanModal(false); }} className={`w-full p-4 rounded-xl border-2 text-left transition-all ${userPlan === 'free' ? 'border-[#FF5252] bg-[#FF5252]/5' : 'border-neutral-200 dark:border-neutral-700'}`}>
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">フリープラン</span>
-                            {userPlan === 'free' && <Icon name="check-circle" className="w-6 h-6 text-[#FF5252]" />}
+                  <div className="space-y-4">
+                      {/* Free Plan */}
+                      <div className={`relative w-full p-5 rounded-xl border-2 text-left transition-all ${userPlan === 'free' ? 'border-neutral-400 bg-neutral-50 dark:bg-neutral-700/50' : 'border-neutral-200 dark:border-neutral-700'}`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <span className="block font-bold text-lg text-neutral-800 dark:text-neutral-100">{PLAN_DETAILS.free.name}</span>
+                                <span className="text-2xl font-bold text-neutral-500">¥0<span className="text-sm font-normal">/月</span></span>
+                            </div>
+                            {userPlan === 'free' && <Icon name="check-circle" className="w-6 h-6 text-neutral-500" />}
                           </div>
-                          <p className="text-sm text-neutral-500 mt-1">基本機能、写真50枚まで</p>
-                      </button>
+                          <p className="text-sm text-neutral-500 mb-3">{PLAN_DETAILS.free.description}</p>
+                          <ul className="text-sm space-y-1 text-neutral-600 dark:text-neutral-300">
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-neutral-400"/> 広告あり</li>
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-neutral-400"/> 写真 100枚まで</li>
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-neutral-400"/> AI 100回/月</li>
+                          </ul>
+                           {userPlan !== 'free' && (
+                              <button 
+                                onClick={() => { onChangePlan('free'); setShowPlanModal(false); }}
+                                className="mt-4 w-full py-2 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-sm font-bold text-neutral-700 dark:text-neutral-200 hover:bg-neutral-300"
+                              >
+                                  フリープランに戻す
+                              </button>
+                          )}
+                      </div>
 
-                      <button onClick={() => { onChangePlan('supporter'); setShowPlanModal(false); }} className={`w-full p-4 rounded-xl border-2 text-left transition-all ${userPlan === 'supporter' ? 'border-green-500 bg-green-500/5' : 'border-neutral-200 dark:border-neutral-700'}`}>
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg">サポーター</span>
+                      {/* Supporter Plan */}
+                      <div className={`relative w-full p-5 rounded-xl border-2 text-left transition-all ${userPlan === 'supporter' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-neutral-200 dark:border-neutral-700'}`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <span className="block font-bold text-lg text-green-600 dark:text-green-400">{PLAN_DETAILS.supporter.name}</span>
+                                <span className="text-2xl font-bold text-green-600 dark:text-green-400">¥300<span className="text-sm font-normal text-neutral-500">/月</span></span>
+                            </div>
                             {userPlan === 'supporter' && <Icon name="check-circle" className="w-6 h-6 text-green-500" />}
                           </div>
-                          <p className="text-sm text-neutral-500 mt-1">広告なし、写真500枚まで、AI 50回/月</p>
-                      </button>
+                          <p className="text-sm text-neutral-500 mb-3">{PLAN_DETAILS.supporter.description}</p>
+                          <ul className="text-sm space-y-1 text-neutral-600 dark:text-neutral-300">
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-green-500"/> <strong>広告なし</strong></li>
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-green-500"/> 写真 300枚まで</li>
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-green-500"/> AI 300回/月</li>
+                          </ul>
+                          {userPlan !== 'supporter' && (
+                              <button 
+                                onClick={() => handlePlanSelection('supporter')}
+                                disabled={!!processingPlanId}
+                                className="mt-4 w-full py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-50 shadow-md shadow-green-500/20"
+                              >
+                                  {processingPlanId === 'supporter' ? '処理中...' : 'サポーターになる'}
+                              </button>
+                          )}
+                      </div>
 
-                      <div className={`w-full p-4 rounded-xl border-2 border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-900/10`}>
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-lg text-rose-600 dark:text-rose-400">カップルプラン</span>
+                      {/* Couple Plan */}
+                      <div className={`relative w-full p-5 rounded-xl border-2 text-left transition-all ${userPlan === 'couple' ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'border-neutral-200 dark:border-neutral-700'}`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <span className="block font-bold text-lg text-rose-600 dark:text-rose-400">{PLAN_DETAILS.couple.name}</span>
+                                <span className="text-2xl font-bold text-rose-600 dark:text-rose-400">¥500<span className="text-sm font-normal text-neutral-500">/月</span></span>
+                            </div>
                             {userPlan === 'couple' && <Icon name="check-circle" className="w-6 h-6 text-rose-500" />}
                           </div>
-                          <p className="text-sm text-rose-500/80 mt-1">パートナーとペアリングすると自動適用。写真無制限。</p>
+                          <p className="text-sm text-neutral-500 mb-3">{PLAN_DETAILS.couple.description}</p>
+                          <ul className="text-sm space-y-1 text-neutral-600 dark:text-neutral-300">
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-rose-500"/> <strong>広告なし</strong></li>
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-rose-500"/> 写真 600枚まで（2人分）</li>
+                              <li className="flex items-center gap-2"><Icon name="check" className="w-4 h-4 text-rose-500"/> AI 600回/月（2人分）</li>
+                          </ul>
                           {userPlan !== 'couple' && (
-                              <button onClick={() => { setShowPlanModal(false); onNavigate({ view: 'pairing' }); }} className="mt-3 text-sm font-bold text-rose-500 underline">
-                                  ペアリング設定へ
+                               <button 
+                                onClick={() => handlePlanSelection('couple')}
+                                disabled={!!processingPlanId}
+                                className="mt-4 w-full py-2 rounded-lg bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 shadow-md shadow-rose-500/20"
+                              >
+                                  {processingPlanId === 'couple' ? '処理中...' : 'カップルプランを選択'}
                               </button>
                           )}
                       </div>
