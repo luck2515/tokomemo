@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Spot, Visit, SpotStatus, AppScreen } from '../types';
 import { Icon } from '../constants';
 import ActionSheet from '../components/ActionSheet';
@@ -75,6 +75,17 @@ const VisitCard: React.FC<{ visit: Visit, onEdit: () => void, onDelete: () => vo
 const SpotDetailModal: React.FC<SpotDetailModalProps> = ({ spot, onClose, onNavigate, onUpdateSpot, onTogglePin, onDelete, onDeleteVisit }) => {
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  
+  // Swipe Logic Refs & State (Modal Vertical Swipe)
+  const modalRef = useRef<HTMLDivElement>(null);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+  const [translateY, setTranslateY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartY = useRef(0);
+  const isAtTop = useRef(true);
+
+  // Image Horizontal Swipe State
+  const [imgTouchStart, setImgTouchStart] = useState<{x: number, y: number} | null>(null);
 
   const photosToShow = spot.photos && spot.photos.length > 0 ? spot.photos : [{ id: 'cover', url: spot.coverPhotoUrl }];
 
@@ -104,11 +115,87 @@ const SpotDetailModal: React.FC<SpotDetailModalProps> = ({ spot, onClose, onNavi
     return undefined;
   };
 
+  // --- Vertical Swipe to Close Logic ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    if (scrollContentRef.current) {
+        isAtTop.current = scrollContentRef.current.scrollTop <= 0;
+    }
+    if (isAtTop.current) {
+        setIsDragging(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+
+    // Only allow dragging down
+    if (diff > 0) {
+        setTranslateY(diff * 0.6);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    if (translateY > 120) {
+        onClose();
+    } else {
+        setTranslateY(0);
+    }
+  };
+
+  // --- Horizontal Swipe to Switch Image ---
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+      // Capture start position for horizontal swipe detection
+      setImgTouchStart({
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY
+      });
+  };
+
+  const handleImageTouchEnd = (e: React.TouchEvent) => {
+      if (!imgTouchStart) return;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      
+      const diffX = endX - imgTouchStart.x;
+      const diffY = endY - imgTouchStart.y;
+
+      // Detect horizontal swipe (must be greater than vertical movement and minimum distance)
+      if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX > 0) {
+              goToPrevious();
+          } else {
+              goToNext();
+          }
+      }
+      setImgTouchStart(null);
+  };
+
+  const opacity = Math.max(0, 1 - translateY / 400);
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-sm animate-fade-in" onClick={onClose}></div>
-      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[96vh] bg-white dark:bg-neutral-900 rounded-t-[2.5rem] flex flex-col animate-slide-up-fast shadow-[0_-10px_40px_rgba(0,0,0,0.2)]">
-        
+      <div 
+        className="fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-sm transition-opacity duration-200" 
+        style={{ opacity: translateY > 0 ? opacity : 1 }}
+        onClick={onClose}
+      ></div>
+      
+      <div 
+        ref={modalRef}
+        className={`fixed inset-0 z-50 bg-white dark:bg-neutral-900 flex flex-col shadow-2xl ${isDragging ? '' : 'transition-transform duration-300 ease-out'} ${translateY === 0 ? 'animate-slide-up-fast' : ''}`}
+        style={{ transform: `translateY(${translateY}px)` }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Visual Handle for Swipe */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-white/50 rounded-full z-30 pointer-events-none" style={{ marginTop: 'env(safe-area-inset-top)' }} />
+
         {/* Header Action Buttons Overlay */}
         <header className="absolute top-0 left-0 right-0 z-20 p-4 flex justify-between items-center" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <button onClick={onClose} className="w-11 h-11 rounded-full flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/10 text-white hover:bg-white/30 transition-all">
@@ -124,8 +211,20 @@ const SpotDetailModal: React.FC<SpotDetailModalProps> = ({ spot, onClose, onNavi
             </div>
         </header>
         
-        <div className="flex-1 overflow-y-auto rounded-t-[2.5rem] no-scrollbar">
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+        <div 
+            ref={scrollContentRef}
+            className="flex-1 overflow-y-auto no-scrollbar touch-pan-y"
+            onScroll={() => {
+                if (scrollContentRef.current) {
+                    isAtTop.current = scrollContentRef.current.scrollTop <= 0;
+                }
+            }}
+        >
+          <div 
+            className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-100 dark:bg-neutral-800"
+            onTouchStart={handleImageTouchStart}
+            onTouchEnd={handleImageTouchEnd}
+          >
             {photosToShow.map((photo, index) => (
                 <img 
                     key={photo.id} 
@@ -138,13 +237,19 @@ const SpotDetailModal: React.FC<SpotDetailModalProps> = ({ spot, onClose, onNavi
 
             {photosToShow.length > 1 && (
                 <>
-                    <button onClick={goToPrevious} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); goToPrevious(); }} 
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors z-30"
+                    >
                         <Icon name="arrow-left" className="w-5 h-5" />
                     </button>
-                    <button onClick={goToNext} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); goToNext(); }} 
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center bg-white/20 backdrop-blur-md text-white hover:bg-white/30 transition-colors z-30"
+                    >
                         <Icon name="chevron-right" className="w-5 h-5" />
                     </button>
-                    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 z-30">
                         {photosToShow.map((_, index) => (
                             <div key={index} className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentPhotoIndex ? 'bg-white w-6' : 'bg-white/50'}`}></div>
                         ))}
@@ -152,14 +257,16 @@ const SpotDetailModal: React.FC<SpotDetailModalProps> = ({ spot, onClose, onNavi
                 </>
             )}
 
-             <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black/80 to-transparent">
-                <h1 className="text-3xl font-extrabold text-white shadow-lg leading-tight">{spot.name}</h1>
-                <div className="flex flex-wrap gap-2 mt-3">
-                    {spot.tags.map(tag => (
-                        <span key={tag} className="px-3 py-1 bg-white/20 backdrop-blur-md border border-white/10 text-white rounded-full text-xs font-bold">
-                            #{tag}
-                        </span>
-                    ))}
+             <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+                <div className="pointer-events-auto">
+                    <h1 className="text-3xl font-extrabold text-white shadow-lg leading-tight">{spot.name}</h1>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                        {spot.tags.map(tag => (
+                            <span key={tag} className="px-3 py-1 bg-white/20 backdrop-blur-md border border-white/10 text-white rounded-full text-xs font-bold">
+                                #{tag}
+                            </span>
+                        ))}
+                    </div>
                 </div>
             </div>
           </div>

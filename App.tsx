@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import HomeScreen from './screens/HomeScreen';
 import BottomNavigation from './components/BottomNavigation';
 import SpotDetailModal from './screens/SpotDetailModal';
@@ -16,7 +16,6 @@ import SignUpScreen from './screens/SignUpScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import UpdatePasswordScreen from './screens/UpdatePasswordScreen';
 import VerifyEmailScreen from './screens/VerifyEmailScreen';
-import Header from './components/Header';
 import { AppScreen, Spot, Visit, UserProfile } from './types';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
@@ -49,6 +48,9 @@ const App: React.FC = () => {
       return;
     }
 
+    // Initial History State
+    window.history.replaceState({ view: 'welcome' }, '');
+
     // Check for payment callbacks (Simulating Stripe Return)
     const params = new URLSearchParams(window.location.search);
     const paymentSuccess = params.get('payment_success');
@@ -60,7 +62,9 @@ const App: React.FC = () => {
       setSession(session);
       if (session) {
         if (!session.user.email_confirmed_at) {
-           setScreen({ view: 'verify-email' });
+           const verifyScreen: AppScreen = { view: 'verify-email' };
+           setScreen(verifyScreen);
+           window.history.replaceState(verifyScreen, '');
            setLoading(false);
            return;
         }
@@ -88,14 +92,18 @@ const App: React.FC = () => {
       setSession(session);
 
       if (event === 'PASSWORD_RECOVERY') {
-        setScreen({ view: 'update-password' });
+        const newScreen: AppScreen = { view: 'update-password' };
+        setScreen(newScreen);
+        window.history.pushState(newScreen, '');
         setLoading(false);
         return;
       }
 
       if (session) {
         if (!session.user.email_confirmed_at) {
-           setScreen({ view: 'verify-email' });
+           const newScreen: AppScreen = { view: 'verify-email' };
+           setScreen(newScreen);
+           window.history.replaceState(newScreen, '');
            setLoading(false);
            return;
         }
@@ -103,7 +111,9 @@ const App: React.FC = () => {
       } else {
         setSpots([]);
         setProfile(null);
-        setScreen({ view: 'welcome' });
+        const newScreen: AppScreen = { view: 'welcome' };
+        setScreen(newScreen);
+        window.history.replaceState(newScreen, '');
         setLoading(false);
       }
     });
@@ -113,10 +123,23 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Browser Back Button Handling
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state) {
+        setScreen(event.state as AppScreen);
+        window.scrollTo(0, 0);
+      } else {
+        // Fallback if state is null (e.g. initial load)
+        // usually keeps current screen or goes to home
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
@@ -179,12 +202,17 @@ const App: React.FC = () => {
             await fetchSpots(userId, profileData.partner_id);
             setHasCompletedOnboarding(true); 
             if (screen.view !== 'update-password') {
-                setScreen({ view: 'home' });
+                const homeScreen: AppScreen = { view: 'home' };
+                setScreen(homeScreen);
+                // We replace state here because this is the "Root" of the logged-in experience
+                window.history.replaceState(homeScreen, '');
             }
         } else {
              setHasCompletedOnboarding(true);
              if (screen.view !== 'update-password') {
-                 setScreen({ view: 'home' });
+                 const homeScreen: AppScreen = { view: 'home' };
+                 setScreen(homeScreen);
+                 window.history.replaceState(homeScreen, '');
              }
         }
     } catch (e) {
@@ -331,9 +359,16 @@ const App: React.FC = () => {
 
   // --- Actions ---
 
-  const handleNavigate = (newScreen: AppScreen) => {
+  const handleNavigate = useCallback((newScreen: AppScreen) => {
     setScreen(newScreen);
-  };
+    window.history.pushState(newScreen, '');
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Handler for going back (triggers browser back)
+  const handleGoBack = useCallback(() => {
+    window.history.back();
+  }, []);
 
   const handleUpdateSpot = async (updatedSpot: Partial<Spot> & { id: string }) => {
     setSpots(prev => prev.map(spot => spot.id === updatedSpot.id ? { ...spot, ...updatedSpot } : spot));
@@ -404,12 +439,11 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSpot = async (spotId: string) => {
-    if (!window.confirm('本当に削除しますか？')) return;
     setSpots(prev => prev.filter(s => s.id !== spotId));
     await supabase.from('photos').delete().eq('spot_id', spotId);
     await supabase.from('visits').delete().eq('spot_id', spotId);
     await supabase.from('spots').delete().eq('id', spotId);
-    handleNavigate({ view: 'home' });
+    handleGoBack();
   };
 
   const handleSaveVisit = async (spotId: string, visit: Visit) => {
@@ -443,7 +477,8 @@ const App: React.FC = () => {
     }
     await supabase.from('spots').update({ status: 'visited' }).eq('id', spotId);
     if(session) fetchSpots(session.user.id, profile?.partner_id);
-    setScreen({ view: 'spot-detail', spotId });
+    // Go back from visit form to spot detail
+    handleGoBack();
   };
 
   // Fix: Unused spotId parameter
@@ -459,7 +494,8 @@ const App: React.FC = () => {
     handleUpdateSpot({ id: spotId, ...completionData });
     setShowUndo(true);
     setTimeout(() => setShowUndo(false), 10000);
-    handleNavigate({ view: 'spot-form', spotId });
+    // Go back from AI completion modal to Spot Form
+    handleGoBack();
     incrementAiUsage(); 
   };
 
@@ -488,26 +524,23 @@ const App: React.FC = () => {
 
   const handleDeleteAccount = async () => {
       if (!session) return;
-      if (window.confirm("本当にアカウントを削除しますか？\nこの操作は取り消せません。全てのデータ（スポット、写真、訪問記録）が削除されます。")) {
-          try {
-              // Try to delete profile. This requires RLS policy or cascading delete.
-              const { error } = await supabase.from('profiles').delete().eq('id', session.user.id);
-              
-              if (error) {
-                 console.error("Delete profile error:", error);
-                 // Fallback or specific handling
-                 throw new Error("プロフィールの削除に失敗しました。データベースの削除ポリシーを確認してください。");
-              }
-              
-              await supabase.auth.signOut();
-              alert("退会処理が完了しました。ご利用ありがとうございました。");
-              setScreen({ view: 'welcome' });
-          } catch (e: any) {
-              console.error(e);
-              alert("退会処理に失敗しました: " + e.message);
-              // Re-throw to let the component know to stop spinning
-              throw e;
+      try {
+          // Try to delete profile. This requires RLS policy or cascading delete.
+          const { error } = await supabase.from('profiles').delete().eq('id', session.user.id);
+          
+          if (error) {
+             console.error("Delete profile error:", error);
+             // Fallback or specific handling
+             throw new Error("プロフィールの削除に失敗しました。データベースの削除ポリシーを確認してください。");
           }
+          
+          await supabase.auth.signOut();
+          alert("退会処理が完了しました。ご利用ありがとうございました。");
+      } catch (e: any) {
+          console.error(e);
+          alert("退会処理に失敗しました: " + e.message);
+          // Re-throw to let the component know to stop spinning
+          throw e;
       }
   };
 
@@ -578,23 +611,18 @@ const App: React.FC = () => {
   }
   
   if (!hasCompletedOnboarding && screen.view !== 'onboarding') {
-       return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); setScreen({ view: 'home' }); }} />;
+       return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); handleNavigate({ view: 'home' }); }} />;
   }
 
   if (screen.view === 'onboarding') {
-    return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); setScreen({ view: 'home' }); }} />;
+    return <OnboardingScreen onComplete={() => { setHasCompletedOnboarding(true); handleNavigate({ view: 'home' }); }} />;
   }
-
-  const showMainHeader = ['home', 'favorites', 'shared'].includes(screen.view);
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-sans selection:bg-rose-500/30">
       {isOffline && <OfflineBanner isOffline={isOffline} />}
 
-      {showMainHeader && <Header />}
-      
-      {/* Padding handled conditionally. If MainHeader is present, add pt-14. SettingsScreen has its own header. */}
-      <div className={`pb-32 ${showMainHeader ? 'pt-14' : ''}`}> 
+      <div className="pb-32"> 
         {screen.view === 'home' && (
             <HomeScreen spots={spots} onNavigate={handleNavigate} view="home" userPlan={userPlan} onTogglePin={handleTogglePin} />
         )}
@@ -606,7 +634,7 @@ const App: React.FC = () => {
         )}
         {screen.view === 'settings' && (
             <SettingsScreen 
-                onBack={() => handleNavigate({ view: 'home' })} 
+                onBack={handleGoBack} 
                 onNavigate={handleNavigate} 
                 userPlan={userPlan} 
                 onLogout={handleLogout}
@@ -623,7 +651,7 @@ const App: React.FC = () => {
       {screen.view === 'spot-detail' && (
         <SpotDetailModal 
             spot={spots.find(s => s.id === screen.spotId)!} 
-            onClose={() => handleNavigate({ view: 'home' })} 
+            onClose={handleGoBack} 
             onNavigate={handleNavigate}
             onUpdateSpot={handleUpdateSpot}
             onTogglePin={handleTogglePin}
@@ -635,7 +663,7 @@ const App: React.FC = () => {
       {screen.view === 'spot-form' && (
         <SpotForm 
             spot={screen.spotId ? spots.find(s => s.id === screen.spotId) : undefined} 
-            onClose={() => handleNavigate({ view: 'home' })} 
+            onClose={handleGoBack} 
             onSave={handleSaveSpot}
             onNavigate={handleNavigate}
             checkStorageLimit={checkStorageLimit}
@@ -648,7 +676,7 @@ const App: React.FC = () => {
         <VisitFormModal 
             spot={spots.find(s => s.id === screen.spotId)!}
             visit={screen.visitId ? spots.find(s => s.id === screen.spotId)?.visits.find(v => v.id === screen.visitId) : undefined}
-            onClose={() => handleNavigate({ view: 'spot-detail', spotId: screen.spotId })}
+            onClose={handleGoBack}
             onSave={handleSaveVisit}
             checkStorageLimit={checkStorageLimit}
         />
@@ -658,14 +686,14 @@ const App: React.FC = () => {
         <AiCompletionModal
             spot={spots.find(s => s.id === screen.spotId)!}
             completionData={screen.completionData}
-            onClose={() => handleNavigate({ view: 'spot-form', spotId: screen.spotId })}
+            onClose={handleGoBack}
             onApply={handleApplyAiCompletion}
         />
       )}
 
       {screen.view === 'pairing' && (
           <PairingScreen 
-            onBack={() => handleNavigate({ view: 'settings' })} 
+            onBack={handleGoBack} 
             onPair={() => fetchProfileAndSpots(session!.user.id)}
             currentUser={profile}
           />

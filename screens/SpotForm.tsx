@@ -343,9 +343,11 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate, 
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}></div>
-      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[95vh] bg-neutral-50 dark:bg-neutral-900 rounded-t-2xl flex flex-col animate-slide-up-fast">
-        <header className="flex-shrink-0 flex items-center p-2 border-b border-neutral-200 dark:border-neutral-700/80" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+      <div className="fixed inset-0 z-[100] bg-neutral-50 dark:bg-neutral-900 flex flex-col animate-slide-up-fast">
+        <header 
+            className="flex-shrink-0 flex items-center p-2 border-b border-neutral-200 dark:border-neutral-700/80 bg-neutral-50 dark:bg-neutral-900"
+            style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
+        >
             <button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <Icon name="x-mark" className="w-6 h-6" />
             </button>
@@ -418,8 +420,6 @@ const SpotForm: React.FC<SpotFormProps> = ({ spot, onClose, onSave, onNavigate, 
         </main>
       </div>
       <style>{`
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-slide-up-fast { animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
